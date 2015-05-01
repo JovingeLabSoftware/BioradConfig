@@ -1,0 +1,14 @@
+Package: BioradConfig
+Type: Package
+Title: BioRad Configuration Generator
+Version: 0.1
+Date: 2015-05-01
+Author: Andrew
+Maintainer: Andrew Borgman <ndrwsbrgmn@gmail.com>
+Description: Create plate configuration files for Bio-Rad Bio-Plex 200 runs.
+License: MIT
+Depends:
+    R (>= 3.1.0)
+Suggests: knitr
+VignetteBuilder: knitr
+
