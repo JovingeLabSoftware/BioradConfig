@@ -8,7 +8,13 @@ Maintainer: Andrew Borgman <ndrwsbrgmn@gmail.com>
 Description: Create plate configuration files for Bio-Rad Bio-Plex 200 runs.
 License: MIT
 Depends:
-    R (>= 3.1.0)
-Suggests: knitr
+    R (>= 3.1.0),
+    RSQLite
+Suggests:
+    knitr
 VignetteBuilder: knitr
-
+Collate:
+    'utils.R'
+    'Aliquot.R'
+    'Patient.R'
+    'Plate.R'

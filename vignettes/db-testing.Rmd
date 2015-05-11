@@ -1,0 +1,56 @@
+---
+title: "Working with the BioradConfig Package"
+author: "Andrew Borgman"
+date: "`r Sys.Date()`"
+output: pdf_document
+vignette: >
+  %\VignetteIndexEntry{ExpSpect Analysis Example}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+
+## Purpose
+
+`BioradConfig` facilitates the creation of Bio-Rad Bio-Plex 200 plate configurations. The package will provide the middleware for the Jovinge Lab's plate configuration application -- interacting with the SQLite data base storing relevant information and updating approprately.
+
+## Data Back-End
+
+The SQLite database on the back end was created with the following schema:
+
+```
+CREATE TABLE aliquot
+( "id" TEXT,
+	"barcode" TEXT,
+	"redcap_id" TEXT,
+	"plate_id" REAL,
+	"is_depleted" REAL,
+	"box_number" TEXT,
+	"row_letter" TEXT,
+	"col_number" REAL,
+	"timepoint" TEXT
+);
+CREATE TABLE patient
+( "id" TEXT,
+	"redcap_id" TEXT,
+	"project_id" REAL,
+	"is_complete_0" REAL,
+	"is_complete_48" REAL,
+	"is_complete_192" REAL,
+	"all_complete" REAL
+);
+CREATE TABLE plate
+( "id" INTEGER,
+	"run_date" INTEGER,
+	"is_processed" INTEGER
+);
+```
+
+## BioradConfig Classes
+
+Each table in the database has a corresponding `BioradConfig` class. 
+
+
+
+
+

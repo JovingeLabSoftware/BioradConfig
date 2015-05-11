@@ -1,6 +1,10 @@
-#' Patient class
+#' @include Aliquot.R utils.R
+
+
+#' @title Patient class
 #'
 #' @docType class
+#' @importFrom R6 R6Class
 #' @export
 #' @description A class representation of a patient.
 #'
@@ -16,11 +20,71 @@ Patient <- R6::R6Class(
     id = NA,
     redcap_id = NA,
     project_id = NA,
-    samples = list(),
+    aliquots = list(),
     is_complete_0 = NA,
     is_complete_48 = NA,
     is_complete_192 = NA,
-    all_complete = NA
+    all_complete = NA,
+
+    initialize = function(db_row) {
+      if (missing(db_row)) stop('You must provide a database row...')
+      self$id <- db_row[['id']]
+      self$redcap_id <- db_row[['redcap_id']]
+      self$project_id <- db_row[['project_id']]
+      self$is_complete_0 <- as.logical(db_row[['is_complete_0']])
+      self$is_complete_48 <- as.logical(db_row[['is_complete_48']])
+      self$is_complete_192 <- as.logical(db_row[['is_complete_192']])
+      self$all_complete <- as.logical(db_row[['all_complete']])
+    },
+
+
+    # getting around known issue: https://github.com/wch/R6/issues/51
+    say_hi = function(x) {
+      cat('I am patient ', self$redcap_id)
+    }
   )
 )
+
+
+Patient$set("public", "get_aliquots_to_run", function(db_con) {
+
+  if (self$all_complete == TRUE) return(list())
+
+  aliquots <- RSQLite::dbGetQuery(
+    conn = db_con,
+    statement = paste0("select * from aliquot where redcap_id = ", self$redcap_id, ";")
+  )
+
+  aliquots <- RSQLite::dbGetQuery(
+    conn = db_con,
+    statement = paste0("select * from aliquot where redcap_id = ", self$redcap_id, " and is_depleted = 0 and plate_id = 0;")
+  )
+
+  # create a list of aliquots from our query
+  ali_list <- lapply(1:nrow(aliquots), function(x) {
+    Aliquot$new(aliquots[x, ])
+  })
+
+
+  to_ret <- list()
+  tps <- sapply(ali_list, function(x) x$timepoint)
+
+  if (!self$is_complete_0) {
+    sel <- sample(which(tps == "0 Hour"), size = 1)
+    to_ret <- c(to_ret, ali_list[[sel]])
+  }
+
+  if (!self$is_complete_48) {
+    sel <- sample(which(tps == "0 Hour"), size = 1)
+    to_ret <- c(to_ret, ali_list[[sel]])
+  }
+
+  if (!self$is_complete_192) {
+    sel <- sample(which(tps == "0 Hour"), size = 1)
+    to_ret <- c(to_ret, ali_list[[sel]])
+  }
+
+  return(to_ret)
+
+})
 
