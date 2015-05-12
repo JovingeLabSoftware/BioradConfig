@@ -52,12 +52,7 @@ Patient$set("public", "get_aliquots_to_run", function(db_con) {
 
   aliquots <- RSQLite::dbGetQuery(
     conn = db_con,
-    statement = paste0("select * from aliquot where redcap_id = ", self$redcap_id, ";")
-  )
-
-  aliquots <- RSQLite::dbGetQuery(
-    conn = db_con,
-    statement = paste0("select * from aliquot where redcap_id = ", self$redcap_id, " and is_depleted = 0 and plate_id = 0;")
+    statement = paste0("select * from aliquot where patient_id = ", self$id, " and is_depleted = 0 and plate_id is null;")
   )
 
   # create a list of aliquots from our query

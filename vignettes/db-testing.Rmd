@@ -43,8 +43,8 @@ CREATE TABLE aliquot
 	"redcap_id" INTEGER,
 	"is_depleted" INTEGER,
 	"box_number" TEXT,
-	"row_letter" TEXT,
-	"col_number" INTEGER,
+  "box_row" TEXT,
+  "box_col" INTEGER,
 	"timepoint" TEXT,
 	FOREIGN KEY(plate_id) REFERENCES plate(id),
 	FOREIGN KEY(patient_id) REFERENCES patient(id)
