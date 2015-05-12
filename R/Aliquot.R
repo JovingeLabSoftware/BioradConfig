@@ -20,6 +20,7 @@ Aliquot <- R6::R6Class(
     barcode = NA,
     redcap_id = NA,
     plate_id = NA,
+    patient_id = NA,
     is_depleted = NA,
     box_number = NA,
     box_row = NA,
@@ -32,6 +33,7 @@ Aliquot <- R6::R6Class(
       self$id <- db_row[['id']]
       self$barcode <- db_row[['barcode']]
       self$plate_id <- db_row[['plate_id']]
+      self$patient_id <- db_row[['patient_id']]
       self$is_depleted <- as.logical(db_row[['is_depleted']])
       self$box_number <- db_row[['box_number']]
       self$box_row <- db_row[['box_row']]
