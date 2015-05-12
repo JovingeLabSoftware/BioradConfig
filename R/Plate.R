@@ -1,7 +1,5 @@
 #' @include Aliquot.R Patient.R utils.R
 
-
-
 #' @title Plate class
 #'
 #' @docType class
@@ -45,11 +43,8 @@ Plate <- R6::R6Class(
     say_hi = function(x) {
       cat('I am plate ', self$id)
     }
-
-
   )
 )
-
 
 Plate$set("public", "get_aliquots", function(db_con) {
 
@@ -77,6 +72,9 @@ Plate$set("public", "get_aliquots", function(db_con) {
       self$patients <- c(self$patients, cur_pat)
       self$aliquots <- c(self$aliquots, pat_al)
       n_added <- n_added + length(pat_al)
+    } else {
+      print('no aliquots for')
+      print(cur_pat)
     }
 
     pat_counter <- pat_counter + 1
@@ -85,7 +83,6 @@ Plate$set("public", "get_aliquots", function(db_con) {
       warning('Warning... not enough samples processed to fill plate. Returning partial plate layout...')
       break()
     }
-
   }
 
 })
@@ -94,8 +91,6 @@ Plate$set("public", "get_aliquots", function(db_con) {
 # this creates a plate configuration using from the list of the plates samples
 Plate$set("public", "create_layout", function() {
 
-
-  # randomly assign the samples to to plate
   ord <- sample(1:length(self$aliquots))
 
   ctr <- 1
@@ -107,23 +102,7 @@ Plate$set("public", "create_layout", function() {
       }
     }
   }
-
-
-
-
-#   ctr <- 1
-#   for (i in 1:nrow(p$layout)) {
-#     for (j in 1:ncol(p$layout)) {
-#       if (is.na(p$layout[i, j])) {
-#         p$layout[i, j] <- p$aliquots[[ord[ctr]]]$barcode
-#         ctr <- ctr + 1
-#       }
-#     }
-#   }
-
-
-
-  })
+})
 
 
 # this writes the plate configuration back to the database
@@ -132,6 +111,8 @@ Plate$set("public", "save_configuration", function(db_con) {
   # make sure db connection is right
   check_db(db_con)
 
+  # # this is how you can update certain values in the database
+  # dbSendQuery(db, "update aliquot set plate_id = '1' where barcode='BC00001-CT-01';")
 
 
 
@@ -153,7 +134,6 @@ Plate$set("public", "dummy", function(db_con) {
   p <- Plate$new()
   p$get_aliquots(db_con)
   p$create_layout()
-
 
 })
 
