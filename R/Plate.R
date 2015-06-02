@@ -24,10 +24,10 @@ Plate <- R6::R6Class(
     layout = data.frame(
       matrix(NA, ncol = 12, nrow = 8)
     ),
+    creation_date = NA,
     run_date = NA,
     is_processed = NA,
     results = list(),
-
 
     # public methods
     initialize = function() {
@@ -46,6 +46,50 @@ Plate <- R6::R6Class(
   )
 )
 
+
+
+# initialize plate object from database
+Plate$set("public", "init_from_db", function(db_con, id) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  # confirm id passed is in the database
+  if (missing(id)) stop('You must provide a plate ID to build object from DB...')
+
+  pt <- dbGetQuery(db_con, 'select * from plate;')
+
+  if (id %in% pt[['id']]) {
+
+    # add plate specific data
+    r <- pt[pt[['id']] == id, ]
+    self$id <- r[['id']]
+    self$creation_date <- r[['creation_date']]
+    self$run_date <- r[['run_date']]
+    self$is_processed <- r[['is_processed']]
+
+    # add all aliquots and plate layout
+    aliquots <- dbGetQuery(
+      db_con,
+      paste0("select * from aliquot where plate_id = ", self$id, ";")
+    )
+
+    self$aliquots <- lapply(1:nrow(aliquots), function(x) {
+      Aliquot$new(aliquots[x, ])
+    })
+
+    for (i in 1:nrow(aliquots)) {
+      self$layout[aliquots[['plate_row']][i], aliquots[['plate_col']][i]] <- aliquots[['barcode']][i]
+    }
+
+  } else {
+    warning('ID is not in database... Not updating plate information...')
+  }
+
+})
+
+
+
 Plate$set("public", "get_aliquots", function(db_con) {
 
   # make sure db connection is right
@@ -63,7 +107,6 @@ Plate$set("public", "get_aliquots", function(db_con) {
   n_added <- 0
   pat_counter <- 1
   while (n_added < n_needed) {
-    print(pat_counter)
 
     cur_pat <- Patient$new(patients[pat_counter, ])
     pat_al <- cur_pat$get_aliquots_to_run(db_con = db_con)
@@ -72,9 +115,6 @@ Plate$set("public", "get_aliquots", function(db_con) {
       self$patients <- c(self$patients, cur_pat)
       self$aliquots <- c(self$aliquots, pat_al)
       n_added <- n_added + length(pat_al)
-    } else {
-      print('no aliquots for')
-      print(cur_pat)
     }
 
     pat_counter <- pat_counter + 1
@@ -88,16 +128,18 @@ Plate$set("public", "get_aliquots", function(db_con) {
 })
 
 
-# this creates a plate configuration using from the list of the plates samples
+# creates a plate configuration using from the list of the plates samples
+# also stores location info in each aliquot object that is contained in the
+# parent plate object
 Plate$set("public", "create_layout", function() {
-
   ord <- sample(1:length(self$aliquots))
-
   ctr <- 1
   for (i in 1:nrow(self$layout)) {
     for (j in 1:ncol(self$layout)) {
-      if (is.na(self$layout[i, j]) & ctr < max(ord)) {
+      if (is.na(self$layout[i, j]) & ctr <= max(ord)) {
         self$layout[i, j] <- self$aliquots[[ord[ctr]]]$barcode
+        self$aliquots[[ord[ctr]]]$plate_row <- LETTERS[i]
+        self$aliquots[[ord[ctr]]]$plate_col <- j
         ctr <- ctr + 1
       }
     }
@@ -105,92 +147,75 @@ Plate$set("public", "create_layout", function() {
 })
 
 
-# this writes the plate configuration back to the database
+# writes the plate configuration back to the database
 Plate$set("public", "save_configuration", function(db_con) {
 
   # make sure db connection is right
   check_db(db_con)
 
-  # # this is how you can update certain values in the database
-  # dbSendQuery(db, "update aliquot set plate_id = '1' where barcode='BC00001-CT-01';")
+  # first, assign a plate ID and save
+  ins <- paste0(
+    'INSERT INTO plate (creation_date, run_date, is_processed) VALUES (',
+    wrap(Sys.Date()), ', NULL, 0);')
 
+  dbGetQuery(db_con, ins)
 
+  # we have auto incrementing keys so our recently inserted value will be our
+  # maximum
+  plate_id <- dbGetQuery(db_con, 'select ifnull(max(id), 0) from plate;')
+  self$id <- unname(unlist(plate_id))
 
+  # then we need to iterate through all the alilquots we have in this plate and
+  # set their plate ID to match the current one
+  for (a in self$aliquots) {
+    a$plate_id <- self$id
+    a$update_plate(db_con)
+  }
 })
 
 
 
+# renders a data frame to be displayed in the web app or written to
+Plate$set("public", "render_table", function(db_con) {
+  to_ignore <- c('Standard', 'Blank', 'NBISC')
+  cl <- self$layout
+  for (i in 1:nrow(cl)) {
+    for (j in 1:ncol(cl)) {
+      if (is.na(cl[i, j])) cl[i, j] <- 'Missing'
+      else if (!(cl[i, j] %in% to_ignore)) {
+        asel <- which(sapply(self$aliquots, function(x) x$barcode) == cl[i, j])
+        if (length(asel)) cl[i, j] <- self$aliquots[[asel]]$get_locstring()
+        else print(paste0('No match for ', cl[i, j]))
+      }
+    }
+  }
+  return(cl)
+})
+
 
 Plate$set("public", "dummy", function(db_con) {
-
-  # make sure db connection is right
-  check_db(db_con)
 
   library(BioradConfig)
   sqlite <- DBI::dbDriver("SQLite")
   dbname <- "~/Google Drive/spectrum/ec2-apps/internal-site/plate/data/test.db"
   db_con <- RSQLite::dbConnect(sqlite, dbname)
 
+  # create a dummy plate configuration
   p <- Plate$new()
   p$get_aliquots(db_con)
   p$create_layout()
 
+  # save config back to database to test
+  p$save_configuration(db_con)
+
+  p$render_table()
+
+  # re-create the same cofiguration from the database
+  p2 <- Plate$new()
+  p2$init_from_db(db_con, 1)
+
+  identical(p$layout, p2$layout)
+
+
 })
 
-
-#
-#
-#
-# dbSendQuery(db, "update aliquot set plate_id = '1' where barcode='BC00001-CT-01';")
-#
-#
-# # creating aliquot table -------------------------------------------------------
-#
-# # build up our aliquot table and create it in the database
-# ali_tab <- cbind.data.frame(
-#   data.frame(id = rownames(dat)),
-#   dat[,c("barcode", "record_id")],
-#   data.frame(is_depleted = 0, plate_id = 0),
-#   dat[,c("box", "row", "col", "variable")]
-# )
-#
-# names(ali_tab) <- c("id", "barcode", "redcap_id", "plate_id", "is_depleted",
-#                     "box_number", "row_letter", "col_number", "timepoint")
-#
-# # create the table and populate it
-# dbWriteTable(db, 'aliquot', ali_tab, row.names = FALSE)
-# dbListTables(db)
-# dbGetQuery(db, "select * from aliquot")
-#
-# # this is how you can update certain values in the database
-# dbSendQuery(db, "update aliquot set plate_id = '1' where barcode='BC00001-CT-01';")
-#
-#
-#
-#
-# make_dummy_plate <- function() {
-#   dummy_data <- data.frame(
-#     matrix(NA, ncol = 12, nrow = 8)
-#   )
-#
-#   colnames(dummy_data) <- 1:12
-#   rownames(dummy_data) <- LETTERS[1:8]
-#
-#   dummy_data[,1] <- 'Standard'
-#   dummy_data[,2] <- 'Standard'
-#   dummy_data[2:3,3:5] <- 'NBISC'
-#   dummy_data[1,3:4] <- 'Blank'
-#
-#
-#   # populate this for now...
-#   for (i in 1:nrow(dummy_data)) {
-#     for (j in 1:ncol(dummy_data)) {
-#       if (is.na(dummy_data[i, j])) {
-#         dummy_data[i, j] <- make_bc_output(sample(dat$barcode, size = 1))
-#       }
-#     }
-#   }
-#
-#   return(dummy_data)
-# }
-#

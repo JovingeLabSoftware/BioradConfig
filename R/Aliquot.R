@@ -20,6 +20,8 @@ Aliquot <- R6::R6Class(
     barcode = NA,
     redcap_id = NA,
     plate_id = NA,
+    plate_row = NA,
+    plate_col = NA,
     patient_id = NA,
     is_depleted = NA,
     box_number = NA,
@@ -33,6 +35,8 @@ Aliquot <- R6::R6Class(
       self$id <- db_row[['id']]
       self$barcode <- db_row[['barcode']]
       self$plate_id <- db_row[['plate_id']]
+      self$plate_row <- db_row[['plate_row']]
+      self$plate_col <- db_row[['plate_col']]
       self$patient_id <- db_row[['patient_id']]
       self$is_depleted <- as.logical(db_row[['is_depleted']])
       self$box_number <- db_row[['box_number']]
@@ -50,14 +54,42 @@ Aliquot <- R6::R6Class(
 )
 
 
+# updates an aliquots plate assignment in the database
+Aliquot$set("public", "update_plate", function(db_con) {
 
-# sqlite> PRAGMA table_info(aliquot);
-# 0|id|TEXT|0||0
-# 1|barcode|TEXT|0||0
-# 2|redcap_id|TEXT|0||0
-# 3|plate_id|REAL|0||0
-# 4|is_depleted|REAL|0||0
-# 5|box_number|TEXT|0||0
-# 6|row_letter|TEXT|0||0
-# 7|col_number|REAL|0||0
-# 8|timepoint|TEXT|0||0
+  # make sure db connection is right
+  check_db(db_con)
+
+  # set plate id and location
+  qstring <- paste0('update aliquot set plate_id = ', self$plate_id,
+                    ' where barcode=', wrap(self$barcode), ';')
+  dbSendQuery(db_con, qstring)
+
+  qstring <- paste0('update aliquot set plate_row = ', wrap(self$plate_row),
+                    ' where barcode=', wrap(self$barcode), ';')
+  dbSendQuery(db_con, qstring)
+
+  qstring <- paste0('update aliquot set plate_col = ', self$plate_col,
+                    ' where barcode=', wrap(self$barcode), ';')
+  dbSendQuery(db_con, qstring)
+
+})
+
+
+
+# creates a text representation of the aliquot to be displayed in tables
+# rendered of the plate configuration. should contain information to help
+# lab users locate the
+Aliquot$set("public", "get_locstring", function() {
+  return(
+    paste0(
+      self$barcode,
+      '\n',
+      self$box_number,
+      ': ',
+      self$box_row,
+      self$box_col
+    )
+  )
+})
+

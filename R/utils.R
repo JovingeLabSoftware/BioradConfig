@@ -6,3 +6,5 @@ check_db <- function(x) {
   if (!is(x, "SQLiteConnection"))
     stop('This is not a SQLite database connection, try again...')
 }
+
+wrap <- function(x) paste0('"', x, '"')

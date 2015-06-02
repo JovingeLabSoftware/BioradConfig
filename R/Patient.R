@@ -59,11 +59,10 @@ Patient$set("public", "get_aliquots_to_run", function(db_con) {
     return(list())
   }
 
-    # create a list of aliquots from our query
+  # create a list of aliquots from our query
   ali_list <- lapply(1:nrow(aliquots), function(x) {
     Aliquot$new(aliquots[x, ])
   })
-
 
   to_ret <- list()
   tps <- sapply(ali_list, function(x) x$timepoint)
