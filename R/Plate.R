@@ -193,7 +193,27 @@ Plate$set("public", "render_table", function(db_con) {
 })
 
 
-Plate$set("public", "dummy", function(db_con) {
+# sets a plate to be 'complete'
+Plate$set("public", "set_complete", function(db_con, run_date = NULL) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  if (is.null(run_date)) run_date <- Sys.Date()
+
+  self$run_date <- run_date
+  self$is_processed <- 1
+
+  # mark all of our aliquots as complete too
+  lapply(self$aliquots, function(x) x$set_complete(db_con))
+
+
+})
+
+
+
+
+Plate$set("public", "demo", function(db_con) {
 
   library(BioradConfig)
   sqlite <- DBI::dbDriver("SQLite")
@@ -215,6 +235,9 @@ Plate$set("public", "dummy", function(db_con) {
   p2$init_from_db(db_con, 1)
 
   identical(p$layout, p2$layout)
+
+  # mark plate as completed
+  p$set_complete(db_con)
 
 
 })

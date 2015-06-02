@@ -62,18 +62,44 @@ Aliquot$set("public", "update_plate", function(db_con) {
 
   # set plate id and location
   qstring <- paste0('update aliquot set plate_id = ', self$plate_id,
-                    ' where barcode=', wrap(self$barcode), ';')
+                    ' where id=', self$id, ';')
   dbSendQuery(db_con, qstring)
 
   qstring <- paste0('update aliquot set plate_row = ', wrap(self$plate_row),
-                    ' where barcode=', wrap(self$barcode), ';')
+                    ' where id=', self$id, ';')
   dbSendQuery(db_con, qstring)
 
   qstring <- paste0('update aliquot set plate_col = ', self$plate_col,
-                    ' where barcode=', wrap(self$barcode), ';')
+                    ' where id=', self$id, ';')
   dbSendQuery(db_con, qstring)
 
 })
+
+
+# sets an aliquot as being complete; updates database entry for aliquot and
+# propagates completion to parent patient
+Aliquot$set("public", "set_complete", function(db_con) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  # mark as depleted
+  qstring <- paste0('update aliquot set is_depleted = 1 where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
+  self$is_depleted <- TRUE
+
+  # update patient table
+  t_field <- switch(self$timepoint,
+                    '0 Hour' = 'is_complete_0',
+                    '48 Hour' = 'is_complete_48',
+                    '8 Day' = 'is_complete_192'
+                    )
+
+  qstring <- paste0('update patient set ', t_field, ' = 1 where id = ', self$patient_id, ';')
+  dbSendQuery(db_con, qstring)
+
+})
+
 
 
 
