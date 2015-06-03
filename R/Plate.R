@@ -111,6 +111,13 @@ Plate$set("public", "get_aliquots", function(db_con) {
     cur_pat <- Patient$new(patients[pat_counter, ])
     pat_al <- cur_pat$get_aliquots_to_run(db_con = db_con)
 
+    # if we need to add less aliquots than we just pulled down, then only keep
+    # how many we need
+    if (n_added + length(pat_al) > n_needed) {
+      to_keep <- n_needed - n_added
+      pat_al <- pat_al[1:to_keep]
+    }
+
     if (length(pat_al)) {
       self$patients <- c(self$patients, cur_pat)
       self$aliquots <- c(self$aliquots, pat_al)
