@@ -110,7 +110,7 @@ Aliquot$set("public", "get_locstring", function() {
   return(
     paste0(
       self$barcode,
-      '\n',
+      '<br/>',
       self$box_number,
       ': ',
       self$box_row,

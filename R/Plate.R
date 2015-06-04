@@ -144,7 +144,7 @@ Plate$set("public", "create_layout", function() {
   for (i in 1:nrow(self$layout)) {
     for (j in 1:ncol(self$layout)) {
       if (is.na(self$layout[i, j]) & ctr <= max(ord)) {
-        self$layout[i, j] <- self$aliquots[[ord[ctr]]]$barcode
+        self$layout[i, j] <- self$aliquots[[ord[ctr]]]$id
         self$aliquots[[ord[ctr]]]$plate_row <- LETTERS[i]
         self$aliquots[[ord[ctr]]]$plate_col <- j
         ctr <- ctr + 1
@@ -183,14 +183,14 @@ Plate$set("public", "save_configuration", function(db_con) {
 
 
 # renders a data frame to be displayed in the web app or written to
-Plate$set("public", "render_table", function(db_con) {
+Plate$set("public", "render_table", function() {
   to_ignore <- c('Standard', 'Blank', 'NBISC')
   cl <- self$layout
   for (i in 1:nrow(cl)) {
     for (j in 1:ncol(cl)) {
       if (is.na(cl[i, j])) cl[i, j] <- 'Missing'
       else if (!(cl[i, j] %in% to_ignore)) {
-        asel <- which(sapply(self$aliquots, function(x) x$barcode) == cl[i, j])
+        asel <- which(sapply(self$aliquots, function(x) x$id) == cl[i, j])
         if (length(asel)) cl[i, j] <- self$aliquots[[asel]]$get_locstring()
         else print(paste0('No match for ', cl[i, j]))
       }
