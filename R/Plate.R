@@ -79,7 +79,7 @@ Plate$set("public", "init_from_db", function(db_con, id) {
     })
 
     for (i in 1:nrow(aliquots)) {
-      self$layout[aliquots[['plate_row']][i], aliquots[['plate_col']][i]] <- aliquots[['barcode']][i]
+      self$layout[aliquots[['plate_row']][i], aliquots[['plate_col']][i]] <- aliquots[['id']][i]
     }
 
   } else {

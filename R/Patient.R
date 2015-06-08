@@ -68,17 +68,20 @@ Patient$set("public", "get_aliquots_to_run", function(db_con) {
   tps <- sapply(ali_list, function(x) x$timepoint)
 
   if (!self$is_complete_0 & any(tps == "0 Hour")) {
-    sel <- sample(which(tps == "0 Hour"), size = 1)
+    sel <- which(tps == "0 Hour")
+    if (length(sel) > 1) sel <- sample(sel, size = 1)
     to_ret <- c(to_ret, ali_list[[sel]])
   }
 
   if (!self$is_complete_48 & any(tps == "48 Hour")) {
-    sel <- sample(which(tps == "48 Hour"), size = 1)
+    sel <- which(tps == "48 Hour")
+    if (length(sel) > 1) sel <- sample(sel, size = 1)
     to_ret <- c(to_ret, ali_list[[sel]])
   }
 
   if (!self$is_complete_192 & any(tps == "8 Day")) {
-    sel <- sample(which(tps == "8 Day"), size = 1)
+    sel <- which(tps == "8 Day")
+    if (length(sel) > 1) sel <- sample(sel, size = 1)
     to_ret <- c(to_ret, ali_list[[sel]])
   }
 
