@@ -19,36 +19,50 @@ vignette: >
 The SQLite database on the back end was created with the following schema:
 
 ```
-CREATE TABLE plate
-( "id" INTEGER PRIMARY KEY,
-	"run_date" TEXT,
-	"is_processed" INTEGER
-);
 
-CREATE TABLE patient
-( "id" INTEGER PRIMARY KEY,
-	"redcap_id" INTEGER,
-	"project_id" INTEGER,
-	"is_complete_0" INTEGER,
-	"is_complete_48" INTEGER,
-	"is_complete_192" INTEGER,
-	"all_complete" INTEGER
-);
+dbGetQuery(
+  db, 
+  'CREATE TABLE plate
+  ( "id" INTEGER PRIMARY KEY,
+  "creation_date" TEXT,
+  "run_date" TEXT,
+  "is_processed" INTEGER,
+  "layout" TEXT
+  );'
+)
 
-CREATE TABLE aliquot
-( "id" INTEGER PRIMARY KEY,
-	"plate_id" INTEGER,
+dbGetQuery(
+  db, 
+  'CREATE TABLE patient
+  ( "id" INTEGER PRIMARY KEY,
+  "redcap_id" INTEGER,
+  "project_id" INTEGER,
+  "is_complete_0" INTEGER,
+  "is_complete_48" INTEGER,
+  "is_complete_192" INTEGER,
+  "all_complete" INTEGER
+  );'
+)
+
+dbGetQuery(
+  db, 
+  'CREATE TABLE aliquot
+  ( "id" INTEGER PRIMARY KEY,
+  "plate_id" INTEGER,
+  "plate_row" TEXT,
+  "plate_col" INTEGER,
   "patient_id" INTEGER,
-	"barcode" TEXT,
-	"redcap_id" INTEGER,
-	"is_depleted" INTEGER,
-	"box_number" TEXT,
+  "barcode" TEXT,
+  "redcap_id" INTEGER,
+  "is_depleted" INTEGER,
+  "box_number" TEXT,
   "box_row" TEXT,
   "box_col" INTEGER,
-	"timepoint" TEXT,
-	FOREIGN KEY(plate_id) REFERENCES plate(id),
-	FOREIGN KEY(patient_id) REFERENCES patient(id)
-);
+  "timepoint" TEXT,
+  FOREIGN KEY(plate_id) REFERENCES plate(id),
+  FOREIGN KEY(patient_id) REFERENCES patient(id)
+  );'
+)
 ```
 
 ## BioradConfig Classes

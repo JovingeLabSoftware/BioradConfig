@@ -65,13 +65,15 @@ Aliquot$set("public", "update_plate", function(db_con) {
                     ' where id=', self$id, ';')
   dbSendQuery(db_con, qstring)
 
-  qstring <- paste0('update aliquot set plate_row = ', wrap(self$plate_row),
-                    ' where id=', self$id, ';')
-  dbSendQuery(db_con, qstring)
+  # not storing these now -- plate layout is stored in plate table
 
-  qstring <- paste0('update aliquot set plate_col = ', self$plate_col,
-                    ' where id=', self$id, ';')
-  dbSendQuery(db_con, qstring)
+#   qstring <- paste0('update aliquot set plate_row = ', wrap(self$plate_row),
+#                     ' where id=', self$id, ';')
+#   dbSendQuery(db_con, qstring)
+#
+#   qstring <- paste0('update aliquot set plate_col = ', self$plate_col,
+#                     ' where id=', self$id, ';')
+#   dbSendQuery(db_con, qstring)
 
 })
 

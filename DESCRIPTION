@@ -9,7 +9,8 @@ Description: Create plate configuration files for Bio-Rad Bio-Plex 200 runs.
 License: MIT
 Depends:
     R (>= 3.1.0),
-    RSQLite
+    RSQLite,
+    jsonlite
 Suggests:
     knitr
 VignetteBuilder: knitr
