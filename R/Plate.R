@@ -187,7 +187,7 @@ Plate$set("public", "save_configuration", function(db_con) {
   # first, assign a plate ID and save
   ins <- paste0(
     "INSERT INTO plate (creation_date, run_date, is_processed, layout) VALUES (",
-    wrap2(Sys.Date()), ", NULL, 0, '", jsonlite::toJSON(p$layout), "');")
+    wrap2(Sys.Date()), ", NULL, 0, '", jsonlite::toJSON(self$layout), "');")
 
   dbGetQuery(db_con, ins)
 
