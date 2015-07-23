@@ -5,7 +5,6 @@
 library(RSQLite)
 library(dplyr)
 library(borgmisc)
-library(readxl)
 library(reshape2)
 
 
@@ -13,97 +12,41 @@ library(reshape2)
 
 # bring in the barcode dump from redcap ----------------------------------------
 
-# this lets you grab the latest version of the barcodes in REDCap
-system('set-ip')
-system('scp lab:/home/ubuntu/bc-dat/bcs.rds data/')
 
-dat <- readRDS('data/bcs.rds')
-
+dat <- barcode_api_call()
 dat[] <- lapply(dat, function(x) {
   x[x == ''] <- NA
   x
 })
 
-mm <- melt(dat, id.vars = c('pid', 'record_id'), factorsAsStrings = F)
-mm <- mm[grep('^aliquot', mm$variable),]
-mm$variable <- as.character(mm$variable)
+# stack this data frame -- kind of awkward
+starts <- seq(3, (ncol(dat) - 3), 3)
+stacked <- do.call(rbind, lapply(starts, function(x) {
+  cbind.data.frame(
+    dat[,c(1, 2)],
+    data.frame(bc_string = names(dat)[x], stringsAsFactors = FALSE),
+    data.frame(
+      barcode = dat[,x],
+      box = dat[,x  + 1],
+      location = dat[,x  + 2],
+      stringsAsFactors = FALSE
+    )
+  )
+}))
+
+
 tu <- setNames(c('0 Hour', '48 Hour', '8 Day'),
-               c("aliquot_id", "aliquot_id48", "aliquot_id8"))
-mm$variable <- tu[mm$variable]
-mm <- mm[!is.na(mm$value),]
+               c("baseline", "48", "8"))
+stacked$timepoint <- tu[sapply(strsplit(stacked$bc_string, '_'), function(x) x[3])]
+stacked <- stacked[!is.na(stacked$barcode), ]
 
-
-# parse the set of barcode locations in the freezer ----------------------------
-
-# if we are connected to the share drive, copy the latest version
-target <- '/Volumes/jovinge.lab/ECMO Study/BOX_ECMO-1_031715.xlsx'
-if (file.exists(target)) {
-  file.copy(target, 'data/BOX_ECMO-1_031715.xlsx', overwrite = TRUE)
-}
-
-# parse from the copy on share drive in the future...
-boxes <- read_excel("data/BOX_ECMO-1_031715.xlsx", col_names = F)
-
-aliquots <- list()
-
-curr_box <- ''
-curr_row <- ''
-curr_col <- ''
-
-# where are all of our boxes?
-box_locs <- grep("^box", unlist(boxes[,1]), ignore.case = T)
-sample_rows <- which(!is.na(unlist(boxes[,1])))
-sample_rows <- setdiff(sample_rows, box_locs)
-
-
-# add names for our selectors
-box_locs <- setNames(box_locs,paste('Box', seq_along(box_locs)))
-sample_rows <-
-  setNames(sample_rows, trim(unlist(boxes[sample_rows, 1])))
-
-
-# loop over our sample rows to populate our info
-bc_ctr <- 1
-bc_list <- list()
-for (i in seq_along(sample_rows)) {
-  curr_row <- sample_rows[i]
-  curr_row_name <- names(sample_rows)[i]
-  box_sel <- box_locs[box_locs < curr_row]
-  curr_box <- names(box_sel)[which.max(box_sel)]
-
-  # the actual barcodes are stored in the row above this...
-  # and we *always* have 9 columns in a box, but they are offset by one...
-  for (j in 2:10) {
-    curr_col <- j - 1
-    curr_bc <- trim(boxes[curr_row - 1, j])
-
-    if (!is.na(curr_bc)) {
-      bc_list[[bc_ctr]] <- data.frame(
-        base_aliquot = strsplit(curr_bc, '-')[[1]][1],
-        barcode = curr_bc,
-        box = curr_box,
-        row = curr_row_name,
-        col = curr_col,
-        stringsAsFactors = F
-      )
-      bc_ctr <- bc_ctr + 1
-    }
-  }
-}
-
-bc_locs <- do.call(rbind, bc_list)
-
-# combine the two
-dat <-
-  merge(bc_locs, mm, by.x = 'base_aliquot', by.y = 'value', all = T)
+stacked$base_aliquot <- sapply(strsplit(stacked$barcode, '-'), function(x) x[1])
 
 
 # create our database -------------------------------------------
 
 sqlite <- dbDriver("SQLite")
-# dbname <- "data/plate-config.sqlite3"
-dbname <- "data/production.db"
-
+dbname <- "inst/extdata/barcode.db"
 if (file.exists(dbname))
   file.remove(dbname)
 db <- dbConnect(sqlite, dbname)

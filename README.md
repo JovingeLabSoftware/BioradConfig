@@ -1,4 +1,4 @@
-# RedGuru -- Linking RedCap and LabGuru
+# RedGuru -- Linking RedCap and LabGuru (also known as BioradConfig)
 
 ## Background
 
