@@ -2,12 +2,10 @@
 # andrew borgman
 # script to build our barcode database
 
-library(RSQLite)
 library(dplyr)
 library(borgmisc)
 library(reshape2)
-
-
+library(BioradConfig)
 
 
 # bring in the barcode dump from redcap ----------------------------------------
@@ -202,5 +200,23 @@ sapply(inserts, function(x)
 
 # dbGetQuery(db, 'select * from aliquot')
 
+
+
+# add in all our LabGuru information
+
+pq <- "select * from patient where all_complete = 0;"
+patients <- RSQLite::dbGetQuery(conn = db, statement = pq)
+patients <- patients[sample(nrow(patients)), ]
+
+
+
+
 # disconnect from the database -------------------------------------------------
 dbDisconnect(db)
+
+
+
+
+
+
+

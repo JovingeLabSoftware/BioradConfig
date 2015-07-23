@@ -107,6 +107,15 @@ Aliquot$set("public", "set_complete", function(db_con) {
 })
 
 
+# generic interface for updating any column for a given aliquot in the database
+Aliquot$set("public", "update_value_in_db", function(column_name, value) {
+  check_db(db_con)
+  if (is.character(value)) value <- wrap(value) # chars need to be wrapped
+
+  qstring <- paste0('update aliquot set ', column_name, ' = ', value,
+                    ' where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
+})
 
 
 # creates a text representation of the aliquot to be displayed in tables

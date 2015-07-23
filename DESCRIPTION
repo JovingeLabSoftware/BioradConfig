@@ -10,7 +10,9 @@ License: MIT
 Depends:
     R (>= 3.1.0),
     RSQLite,
-    jsonlite
+    jsonlite,
+    curl,
+    httr
 Suggests:
     knitr
 VignetteBuilder: knitr
@@ -19,3 +21,5 @@ Collate:
     'Aliquot.R'
     'Patient.R'
     'Plate.R'
+    'guru-utils.R'
+    'redcap-utils.R'

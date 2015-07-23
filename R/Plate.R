@@ -338,7 +338,7 @@ Plate$set("public", "demo", function(db_con) {
 
   library(BioradConfig)
   sqlite <- DBI::dbDriver("SQLite")
-  dbname <- "~/Google Drive/spectrum/ec2-apps/internal-site/plate/data/test.db"
+  dbname <- "inst/extdata/barcode.db"
   db_con <- RSQLite::dbConnect(sqlite, dbname)
 
   # create a dummy plate configuration
