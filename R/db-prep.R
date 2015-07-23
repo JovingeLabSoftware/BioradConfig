@@ -41,6 +41,10 @@ stacked$timepoint <- tu[sapply(strsplit(stacked$bc_string, '_'), function(x) x[3
 stacked <- stacked[!is.na(stacked$barcode), ]
 
 stacked$base_aliquot <- sapply(strsplit(stacked$barcode, '-'), function(x) x[1])
+dat <- stacked
+dat$row <- substr(dat$location, 1, 1)
+dat$col <- as.numeric(substr(dat$location, 2, 2))
+
 
 
 # create our database -------------------------------------------
@@ -113,7 +117,6 @@ pat_tab <- cbind.data.frame(
   )
 )
 pat_tab <- pat_tab[!duplicated(pat_tab),]
-pat_tab <- pat_tab[!is.na(pat_tab$record_id),]
 
 names(pat_tab) <- c(
   "redcap_id", "project_id", "is_complete_0",
@@ -141,11 +144,11 @@ ali_tab <- cbind.data.frame(
   dat[,c("barcode", "record_id", "pid")],
   data.frame(
     is_depleted = 0, plate_id = 'null', plate_row = 'null',
-    plate_col = 'null'
+    plate_col = 'null', guru_tube_id = 'null',
+    guru_tissue_id = 'null', guru_box_id = 'null'
   ),
-  dat[,c("box", "row", "col", "variable")]
+  dat[,c("box", "row", "col", "timepoint")]
 )
-ali_tab <- ali_tab[!is.na(ali_tab$barcode),]
 
 ali_tab$key <- paste(ali_tab$record_id, ali_tab$pid, sep = '_')
 
@@ -160,7 +163,8 @@ ali_tab <- ali_tab[,-which(names(ali_tab) == 'key')]
 ali_tab <-
   ali_tab[,c(
     "plate_id", "id", "barcode", "record_id", "is_depleted",
-    "box", "row", "col", "variable"
+    "box", "row", "col", "timepoint", "guru_tube_id", "guru_tissue_id",
+    "guru_box_id"
   )]
 
 ###
@@ -174,12 +178,14 @@ names(ali_tab) <-
   c(
     "plate_id" , "patient_id" , "barcode", "redcap_id" ,
     "is_depleted" , "box_number", "box_row", "box_col" ,
-    "timepoint"
+    "timepoint", "guru_tube_id", "guru_tissue_id",
+    "guru_box_id"
   )
 
 # puke
 wrap <- function(x)
   paste0('"', x, '"')
+
 inserts <- paste0(
   'INSERT INTO aliquot (',
   paste(names(ali_tab), collapse = ", "),
@@ -187,14 +193,14 @@ inserts <- paste0(
   apply(ali_tab, 1, function(x)
     paste(x[1], x[2], wrap(x[3]), x[4], x[5],
           wrap(x[6]), wrap(x[7]), x[8], wrap(x[9]),
-          sep = ", ")),
+          x[10], x[11], x[12], sep = ", ")),
   ');'
 )
 
 sapply(inserts, function(x)
   dbGetQuery(db, x)) # push all the aliquots in...
 
-# dbGetQuery(db, 'select * from aliquo
+# dbGetQuery(db, 'select * from aliquot')
 
 # disconnect from the database -------------------------------------------------
 dbDisconnect(db)
