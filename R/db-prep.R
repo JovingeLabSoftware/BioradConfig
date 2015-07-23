@@ -84,11 +84,14 @@ dbGetQuery(
   "plate_col" INTEGER,
   "patient_id" INTEGER,
   "barcode" TEXT,
+  "guru_tube_id" INTEGER,
   "redcap_id" INTEGER,
+  "guru_tissue_id" INTEGER,
   "is_depleted" INTEGER,
   "box_number" TEXT,
   "box_row" TEXT,
   "box_col" INTEGER,
+  "guru_box_id" INTEGER,
   "timepoint" TEXT,
   FOREIGN KEY(plate_id) REFERENCES plate(id),
   FOREIGN KEY(patient_id) REFERENCES patient(id)
@@ -159,6 +162,13 @@ ali_tab <-
     "plate_id", "id", "barcode", "record_id", "is_depleted",
     "box", "row", "col", "variable"
   )]
+
+###
+# need to add these here
+# "guru_tube_id" INTEGER,
+# "guru_tissue_id" INTEGER,
+# "guru_box_id" INTEGER,
+###
 
 names(ali_tab) <-
   c(

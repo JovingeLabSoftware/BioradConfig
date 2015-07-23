@@ -23,11 +23,15 @@ Aliquot <- R6::R6Class(
     plate_row = NA,
     plate_col = NA,
     patient_id = NA,
+    guru_tube_id = NA,
+    guru_tissue_id = NA,
+    guru_box_id = NA,
     is_depleted = NA,
     box_number = NA,
     box_row = NA,
     box_col = NA,
     timepoint = NA,
+
 
     # initialize an aliquot object from a database row
     initialize = function(db_row) {
