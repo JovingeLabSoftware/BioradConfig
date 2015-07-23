@@ -81,9 +81,9 @@ Plate$set("public", "init_from_db", function(db_con, id) {
 
     self$layout <- jsonlite::fromJSON(r[['layout']])
 
-#     for (i in 1:nrow(aliquots)) {
-#       self$layout[aliquots[['plate_row']][i], aliquots[['plate_col']][i]] <- aliquots[['id']][i]
-#     }
+    #     for (i in 1:nrow(aliquots)) {
+    #       self$layout[aliquots[['plate_row']][i], aliquots[['plate_col']][i]] <- aliquots[['id']][i]
+    #     }
 
   } else {
     warning('ID is not in database... Not updating plate information...')
@@ -294,14 +294,42 @@ Plate$set("public", "set_complete", function(db_con, run_date = NULL) {
 
   if (is.null(run_date)) run_date <- Sys.Date()
 
-  self$run_date <- run_date
+  # mark as processed and set run date in database
+  qstring <- paste0('update plate set is_processed = 1 where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
   self$is_processed <- 1
+
+  qstring <- paste0('update plate set run_date = ', wrap(run_date) ,' where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
+  self$run_date <- run_date
 
   # mark all of our aliquots as complete too
   lapply(self$aliquots, function(x) x$set_complete(db_con))
 
+})
+
+
+# deletes a plate from the database
+Plate$set("public", "delete", function(db_con) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  # check to see the plate has been run and bread if it has
+  if (self$is_processed == 1 | !is.na(self$run_date)) {
+    stop('Cannot delete a plate that has already been processed.')
+  }
+
+  # delete our plate from the database
+  qstring <- paste0('delete from plate where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
+
+  # disassociate all aliquots with this plate
+  qstring <- paste0('update aliquot set plate_id = null where plate_id = ', self$id, ';')
+  dbSendQuery(db_con, qstring)
 
 })
+
 
 
 
