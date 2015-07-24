@@ -26,6 +26,7 @@ Aliquot <- R6::R6Class(
     guru_tube_id = NA,
     guru_tissue_id = NA,
     guru_box_id = NA,
+    in_guru = NA,
     is_depleted = NA,
     box_number = NA,
     box_row = NA,
@@ -108,7 +109,8 @@ Aliquot$set("public", "set_complete", function(db_con) {
 
 
 # generic interface for updating any column for a given aliquot in the database
-Aliquot$set("public", "update_value_in_db", function(column_name, value) {
+Aliquot$set("public", "update_value_in_db", function(db_con, column_name,
+                                                     value) {
   check_db(db_con)
   if (is.character(value)) value <- wrap(value) # chars need to be wrapped
 
@@ -132,5 +134,11 @@ Aliquot$set("public", "get_locstring", function() {
       self$box_col
     )
   )
+})
+
+
+# returns the box location as a single string
+Aliquot$set("public", "get_loc", function() {
+  return(paste0(self$box_row, self$box_col))
 })
 

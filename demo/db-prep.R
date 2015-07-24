@@ -35,10 +35,14 @@ stacked <- do.call(rbind, lapply(starts, function(x) {
 
 tu <- setNames(c('0 Hour', '48 Hour', '8 Day'),
                c("baseline", "48", "8"))
-stacked$timepoint <- tu[sapply(strsplit(stacked$bc_string, '_'), function(x) x[3])]
-stacked <- stacked[!is.na(stacked$barcode), ]
+stacked$timepoint <-
+  tu[sapply(strsplit(stacked$bc_string, '_'), function(x)
+    x[3])]
+stacked <- stacked[!is.na(stacked$barcode),]
 
-stacked$base_aliquot <- sapply(strsplit(stacked$barcode, '-'), function(x) x[1])
+stacked$base_aliquot <-
+  sapply(strsplit(stacked$barcode, '-'), function(x)
+    x[1])
 dat <- stacked
 dat$row <- substr(dat$location, 1, 1)
 dat$col <- as.numeric(substr(dat$location, 2, 2))
@@ -53,7 +57,7 @@ if (file.exists(dbname))
   file.remove(dbname)
 db <- dbConnect(sqlite, dbname)
 
-dbGetQuery(
+dbSendQuery(
   db,
   'CREATE TABLE plate
   ( "id" INTEGER PRIMARY KEY,
@@ -64,7 +68,7 @@ dbGetQuery(
   );'
 )
 
-dbGetQuery(
+dbSendQuery(
   db,
   'CREATE TABLE patient
   ( "id" INTEGER PRIMARY KEY,
@@ -77,7 +81,7 @@ dbGetQuery(
   );'
 )
 
-dbGetQuery(
+dbSendQuery(
   db,
   'CREATE TABLE aliquot
   ( "id" INTEGER PRIMARY KEY,
@@ -95,6 +99,7 @@ dbGetQuery(
   "box_col" INTEGER,
   "guru_box_id" INTEGER,
   "timepoint" TEXT,
+  "in_guru" INTEGER,
   FOREIGN KEY(plate_id) REFERENCES plate(id),
   FOREIGN KEY(patient_id) REFERENCES patient(id)
   );'
@@ -143,7 +148,8 @@ ali_tab <- cbind.data.frame(
   data.frame(
     is_depleted = 0, plate_id = 'null', plate_row = 'null',
     plate_col = 'null', guru_tube_id = 'null',
-    guru_tissue_id = 'null', guru_box_id = 'null'
+    guru_tissue_id = 'null', guru_box_id = 'null',
+    in_guru = 'null'
   ),
   dat[,c("box", "row", "col", "timepoint")]
 )
@@ -162,22 +168,15 @@ ali_tab <-
   ali_tab[,c(
     "plate_id", "id", "barcode", "record_id", "is_depleted",
     "box", "row", "col", "timepoint", "guru_tube_id", "guru_tissue_id",
-    "guru_box_id"
+    "guru_box_id", "in_guru"
   )]
-
-###
-# need to add these here
-# "guru_tube_id" INTEGER,
-# "guru_tissue_id" INTEGER,
-# "guru_box_id" INTEGER,
-###
 
 names(ali_tab) <-
   c(
     "plate_id" , "patient_id" , "barcode", "redcap_id" ,
     "is_depleted" , "box_number", "box_row", "box_col" ,
     "timepoint", "guru_tube_id", "guru_tissue_id",
-    "guru_box_id"
+    "guru_box_id", "in_guru"
   )
 
 # puke
@@ -189,34 +188,161 @@ inserts <- paste0(
   paste(names(ali_tab), collapse = ", "),
   ') VALUES (',
   apply(ali_tab, 1, function(x)
-    paste(x[1], x[2], wrap(x[3]), x[4], x[5],
-          wrap(x[6]), wrap(x[7]), x[8], wrap(x[9]),
-          x[10], x[11], x[12], sep = ", ")),
+    paste(
+      x[1], x[2], wrap(x[3]), x[4], x[5],
+      wrap(x[6]), wrap(x[7]), x[8], wrap(x[9]),
+      x[10], x[11], x[12], x[13], sep = ", "
+    )),
   ');'
 )
 
 sapply(inserts, function(x)
   dbGetQuery(db, x)) # push all the aliquots in...
 
-# dbGetQuery(db, 'select * from aliquot')
+# add in all our LabGuru information -------------------------------------------
+
+gtok <- readRDS('~/.guru-token.rds')
+gbox <- get_all(token = gtok, data_type = 'boxes')
+gbox <- do.call(rbind, lapply(gbox, function(x) x[,c('id', 'name')]))
+gtis <- get_all(token = gtok, data_type = 'tissues')
+gtis <-
+  do.call(rbind, lapply(gtis, function(x)
+    x[,c('id', 'name', 'uuid')]))
+gtub <- get_all(token = gtok, data_type = 'tubes')
+gtub <-
+  do.call(rbind, lapply(gtub, function(x)
+    cbind(
+      x[,c('id', 'name', 'barcode')],
+      data.frame(
+        box_name = x$box$name,
+        box_loc = x$box$location_in_box
+      )
+    )))
 
 
+# there is an error on one off the calls for a "page" of aliquots
+# figure out which ones these are and grab them one by one
+id_range <- seq(1, max(gtub$id), 10)
+missed <- id_range[which(!(id_range %in% gtub$id))]
+miss_tubes <- lapply(missed, function(x) {
+  tryCatch({
+    get_one(token = gtok, id = x, data_type = 'tubes')
+  },
+  error = function(e) NULL)
+})
+miss_tubes <- miss_tubes[sapply(miss_tubes, function(x) !is.null(x))]
+miss_tubes <- do.call(rbind, lapply(miss_tubes, function(x) {
+  data.frame(
+    id = x$id,
+    name = x$name,
+    barcode = ifelse(is.null(x$barcode), NA, x$barcode),
+    box_name = x$box$name,
+    box_loc = x$box$location_in_box
+  )
+}))
 
-# add in all our LabGuru information
+gtub <- rbind(gtub, miss_tubes)
 
-pq <- "select * from patient where all_complete = 0;"
-patients <- RSQLite::dbGetQuery(conn = db, statement = pq)
-patients <- patients[sample(nrow(patients)), ]
+
+# get all the aliquots in our database to update
+alis <- RSQLite::dbGetQuery(conn = db, statement =  "select * from aliquot;")
+ali_list <- lapply(1:nrow(alis), function(x) {
+  Aliquot$new(alis[x,])
+})
+
+
+tlu <- setNames(c('cytokine', 'pbmc', 'neutrophil'), c('CT', 'PB', 'NT'))
+
+
+for (i in seq_along(ali_list)) {
+
+  ali <- ali_list[[i]]
+  bsel <- which(gbox[["name"]] == ali$box_number)
+  tsel <- which(gtis$name == strsplit(ali$barcode, '-')[[1]][1])
+  asel <- which(gtub$name == ali$barcode)
+
+  if (length(asel)) {
+
+    tmp <- gtub[asel,]
+    bmatch <- intersect(
+      which(tmp$box_name == ali$box_number),
+      which(tmp$box_loc == alpha_to_guru(ali$get_loc()))
+      )
+
+    if (length(bmatch) == 1) {
+      ali$update_value_in_db(db_con = db, column_name = 'guru_tube_id',
+                             value = tmp$id[bmatch])
+      ali$update_value_in_db(db_con = db, column_name = 'guru_tissue_id',
+                             value = gtis$id[tsel])
+      ali$update_value_in_db(db_con = db, column_name = 'guru_box_id',
+                             value = gbox$id[bsel])
+      ali$update_value_in_db(db_con = db, column_name = 'in_guru', value = 1)
+
+    } else {
+      print(paste('Could not find unique match for', ali$barcode))
+      print(paste('i =', i))
+    }
+
+  } else {
+
+    # create the tube (and possible tissue) in LabGuru
+    if (!length(tsel)) {
+      base_id <- strsplit(ali$barcode, '-')[[1]][1]
+      tissue_descr <- paste(
+        paste("Patient Type:", ifelse(
+          grepl("CTRL", ali$barcode), 'control',
+          'patient'
+        )),
+        paste("Collection Timepoint:", ali$timepoint),
+        sep = "<br/>"
+      )
+
+      tissue_info <- create_tissue(base_id = base_id, token = gtok,
+                                   descr = tissue_descr)
+      gtis <- rbind(gtis, data.frame(tissue_info[c('id', 'name', 'uuid')]))
+      tiss_uuid <- tissue_info[['uuid']]
+      tiss_id <- tissue_info[['id']]
+    } else {
+      tiss_uuid <- gtis$uuid[tsel]
+      tiss_id <- gtis$id[tsel]
+    }
+
+    tstr <- strsplit(ali$barcode, '-')[[1]][2]
+    stype <- ifelse(is.na(tstr), 'unknown', tlu[tstr])
+    tube_descr <- paste(
+      paste("Sample Type:", stype),
+      paste("Patient Type:", ifelse(
+        grepl("CTRL", ali$barcode), 'control',
+        'patient'
+      )),
+      paste("Collection Timepoint:", ali$timepoint),
+      sep = "<br/>"
+    )
+
+    tube_info <- create_tube(
+      tube_name = ali$barcode,
+      tube_barcode = ali$barcode,
+      box = gbox$id[bsel],
+      box_location = alpha_to_guru(ali$get_loc()),
+      tissue_uuid = tiss_uuid,
+      tube_notes = tube_descr,
+      token = gtok
+    )
+
+    ali$update_value_in_db(db_con = db, column_name = 'guru_tube_id',
+                           value = tube_info[['id']])
+    ali$update_value_in_db(db_con = db, column_name = 'guru_tissue_id',
+                           value = tiss_uuid)
+    ali$update_value_in_db(db_con = db, column_name = 'guru_box_id',
+                           value = gbox$id[bsel])
+    ali$update_value_in_db(db_con = db, column_name = 'in_guru', value = 1)
+
+  }
+}
+
 
 
 
 
 # disconnect from the database -------------------------------------------------
 dbDisconnect(db)
-
-
-
-
-
-
-

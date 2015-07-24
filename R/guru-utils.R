@@ -47,18 +47,30 @@ get_all <- function(token, data_type = 'boxes') {
   keep_going <- TRUE
   page_ctr <- 1
   all_storages <- list()
+
+
+  # reqs <- list()
+
   while (keep_going) {
     target <- paste0("https://api.labguru.com/api/v1/", data_type,
                      ".json?token=", token, "&page=", page_ctr)
     req <- curl::curl_fetch_memory(target)
-    storages <- jsonlite::fromJSON(rawToChar(req$content))
+    # reqs[[page_ctr]] <- req
+
+
+    e <- try({storages <- jsonlite::fromJSON(rawToChar(req$content))},
+             silent = TRUE)
+    if (inherits(e, 'try-error')) {
+      all_storages[[page_ctr]] <- NULL
+      page_ctr <- page_ctr + 1
+    }
     if (length(storages)) {
       all_storages[[page_ctr]] <- storages
       page_ctr <- page_ctr + 1
     } else {
       keep_going <- FALSE
     }
-    Sys.sleep(1)
+    Sys.sleep(0.5)
   }
   return(all_storages)
 }
@@ -164,4 +176,41 @@ create_tube <- function(tube_name, tube_barcode, box, box_location, tissue_uuid,
   res <- poster(api_route = 'tubes', data = payload)
   return(jsonlite::fromJSON(content(res, 'text')))
 }
+
+
+
+
+#' Compute the LabGuru box position
+#'
+#' This function takes an alphanumeric box location (ex. B2) and computes the
+#' corresponding numerical position used in LabGuru. Passing
+#' \code{reverse = TRUE} allows users to perform the computation in revers --
+#' i.e. to compute the alphanumeric position from the LabGuru position.
+#'
+#' @param loc_string The value to convert
+#' @param reverse Which direction do you want to go
+#' @param box_cols How many columns are in the storage box
+#'
+#' @export
+
+
+alpha_to_guru <- function(loc_string, reverse = FALSE, box_cols = 9) {
+  if (!reverse) {
+    if (nchar(loc_string) != 2 | is.numeric(loc_string))
+      stop('Invalid loc_string...')
+    roe <- toupper(substr(loc_string, 1, 1))
+    column <- as.numeric(substr(loc_string, 2, 2))
+    row_mult <- match(roe, LETTERS) - 1
+    box_loc <- (row_mult * box_cols) + column
+    return(box_loc)
+  } else {
+    if (!is.numeric(loc_string))
+      stop('loc_string must be numeric if reverse = TRUE')
+    roe <- LETTERS[ceiling(loc_string / box_cols)]
+    column <- loc_string %% box_cols
+    return(paste0(roe, column))
+  }
+}
+
+
 
