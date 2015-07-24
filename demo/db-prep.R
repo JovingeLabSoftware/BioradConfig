@@ -18,7 +18,8 @@ dat[] <- lapply(dat, function(x) {
 })
 
 # stack this data frame -- kind of awkward
-starts <- seq(3, (ncol(dat) - 3), 3)
+starts <- seq(3, ncol(dat), 3)
+
 stacked <- do.call(rbind, lapply(starts, function(x) {
   cbind.data.frame(
     dat[,c(1, 2)],
