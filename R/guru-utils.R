@@ -121,7 +121,7 @@ create_box <- function(box_name, token, box_rows = 9, box_cols = 9,
 
   # send post request
   res <- poster(api_route = 'boxes', data = payload)
-  return(jsonlite::fromJSON(content(res, 'text')))
+  return(jsonlite::fromJSON(httr::content(res, 'text')))
 }
 
 
@@ -144,7 +144,7 @@ create_tissue <- function(base_id, descr, token, type = "blood") {
 
   # send post request
   res <- poster(api_route = 'tissues', data = payload)
-  return(jsonlite::fromJSON(content(res, 'text')))
+  return(jsonlite::fromJSON(httr::content(res, 'text')))
 }
 
 
@@ -174,7 +174,7 @@ create_tube <- function(tube_name, tube_barcode, box, box_location, tissue_uuid,
 
   # send post request
   res <- poster(api_route = 'tubes', data = payload)
-  return(jsonlite::fromJSON(content(res, 'text')))
+  return(jsonlite::fromJSON(httr::content(res, 'text')))
 }
 
 
@@ -211,6 +211,59 @@ alpha_to_guru <- function(loc_string, reverse = FALSE, box_cols = 9) {
     return(paste0(roe, column))
   }
 }
+
+
+#' Get a new API key
+#'
+#' This function will get an updated API token from LabGuru to replace an
+#' expired one.
+#'
+#' @param user_name Your LabGuru user name
+#' @param password Your LabGuru password
+#'
+#' @examples
+#' \dontrun{
+#' # get a new token
+#' my_secrets = readRDS('~/.labguru.rds')
+#' new_api_key <- get_guru_key(my_secrets[['user']], my_secrets[['pass']])
+#' }
+#'
+#' @export
+
+get_guru_key <- function(user_name, password) {
+
+  res <- httr::POST(
+    url = "https://api.labguru.com/api/v1/sessions.json",
+    config = httr::add_headers("Content-Type" = "application/json"),
+    body = paste0('{"login":"', user_name, '","password":"',  password, '"}')
+  )
+
+  if (req$status_code != 200L) {
+    stop('There was an error retrieving your API token....')
+  } else {
+    return(httr::content(res)$token)
+  }
+
+}
+
+
+#' Check if an existing API key works
+#'
+#' This function will test an API token from LabGuru - returning \code{TRUE} if
+#' the token is valid and \code{FALSE} otherwise.
+#'
+#' @param token The API token to test
+#'
+#' @export
+
+check_guru_key <- function(token) {
+  # do something simple and see if it fails
+  e <- try({get_one(token = token, id = 1, data_type = 'tubes')})
+  if (inherits(e, 'try-error')) return(FALSE)
+  else return(TRUE)
+}
+
+
 
 
 
