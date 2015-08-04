@@ -36,18 +36,21 @@ Aliquot <- R6::R6Class(
 
     # initialize an aliquot object from a database row
     initialize = function(db_row) {
-      if (missing(db_row)) stop('You must provide a database row...')
-      self$id <- db_row[['id']]
-      self$barcode <- db_row[['barcode']]
-      self$plate_id <- db_row[['plate_id']]
-      self$plate_row <- db_row[['plate_row']]
-      self$plate_col <- db_row[['plate_col']]
-      self$patient_id <- db_row[['patient_id']]
-      self$is_depleted <- as.logical(db_row[['is_depleted']])
-      self$box_number <- db_row[['box_number']]
-      self$box_row <- db_row[['box_row']]
-      self$box_col <- db_row[['box_col']]
-      self$timepoint <- db_row[['timepoint']]
+      if (!missing(db_row))  {
+        self$id <- db_row[['id']]
+        self$barcode <- db_row[['barcode']]
+        self$plate_id <- db_row[['plate_id']]
+        self$plate_row <- db_row[['plate_row']]
+        self$plate_col <- db_row[['plate_col']]
+        self$patient_id <- db_row[['patient_id']]
+        self$is_depleted <- as.logical(db_row[['is_depleted']])
+        self$box_number <- db_row[['box_number']]
+        self$box_row <- db_row[['box_row']]
+        self$box_col <- db_row[['box_col']]
+        self$timepoint <- db_row[['timepoint']]
+      } else {
+        warning('No database row passed, creating empty object...')
+      }
     },
 
     # getting around known issue: https://github.com/wch/R6/issues/51
@@ -141,4 +144,45 @@ Aliquot$set("public", "get_locstring", function() {
 Aliquot$set("public", "get_loc", function() {
   return(paste0(self$box_row, self$box_col))
 })
+
+
+# TODO
+# returns the box location as a single string
+Aliquot$set("public", "get_guru_locstring", function() {
+
+#   tlu <- setNames(c('cytokine', 'pbmc', 'neutrophil'), c('CT', 'PB', 'NT'))
+#   tstr <- strsplit(self$barcode, '-')[[1]][2]
+#   stype <- ifelse(is.na(tstr), 'unknown', tlu[tstr])
+#   tube_descr <- paste(
+#     paste("Sample Type:", stype),
+#     paste("Patient Type:", ifelse(
+#       grepl("CTRL", ali$barcode), 'control',
+#       'patient'
+#     )),
+#     paste("Collection Timepoint:", ali$timepoint),
+#     sep = "<br/>"
+#   )
+
+})
+
+
+# sets the patient ID for the current aliquot and returns its value
+# will create the patient in the database if it does not exist
+Aliquot$set("public", "get_patient", function(db_con) {
+
+  # check to see
+  if (is.null(self$patient_id) | is.na(self$patient_id)) {
+    check_db(db_con)
+    qstring <- paste0('select * from patient where redcap_id = ',
+                      self$redcap_id, ';')
+    dbSendQuery(db_con, qstring)
+
+
+  } else {
+    return(self$patient_id)
+  }
+})
+
+
+
 

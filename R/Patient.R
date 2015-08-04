@@ -27,14 +27,17 @@ Patient <- R6::R6Class(
     all_complete = NA,
 
     initialize = function(db_row) {
-      if (missing(db_row)) stop('You must provide a database row...')
-      self$id <- db_row[['id']]
-      self$redcap_id <- db_row[['redcap_id']]
-      self$project_id <- db_row[['project_id']]
-      self$is_complete_0 <- as.logical(db_row[['is_complete_0']])
-      self$is_complete_48 <- as.logical(db_row[['is_complete_48']])
-      self$is_complete_192 <- as.logical(db_row[['is_complete_192']])
-      self$all_complete <- as.logical(db_row[['all_complete']])
+      if (!missing(db_row)) {
+        self$id <- db_row[['id']]
+        self$redcap_id <- db_row[['redcap_id']]
+        self$project_id <- db_row[['project_id']]
+        self$is_complete_0 <- as.logical(db_row[['is_complete_0']])
+        self$is_complete_48 <- as.logical(db_row[['is_complete_48']])
+        self$is_complete_192 <- as.logical(db_row[['is_complete_192']])
+        self$all_complete <- as.logical(db_row[['all_complete']])
+      } else {
+        warning('No database row passed, creating empty object...')
+      }
     },
 
 
