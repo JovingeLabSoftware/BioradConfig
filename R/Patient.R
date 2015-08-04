@@ -92,3 +92,61 @@ Patient$set("public", "get_aliquots_to_run", function(db_con) {
 
 })
 
+
+# generic interface for updating any column for a given aliquot in the database
+Patient$set("public", "update_value_in_db", function(db_con, column_name,
+                                                     value) {
+  check_db(db_con)
+  if (is.character(value)) value <- wrap(value) # chars need to be wrapped
+
+  qstring <- paste0('update plate set ', column_name, ' = ', value,
+                    ' where id=', self$id, ';')
+  dbSendQuery(db_con, qstring)
+})
+
+
+
+
+# generic interface for updating any column for a given aliquot in the database
+Patient$set("public", "save_to_db", function(db_con) {
+  check_db(db_con)
+
+  db_vals <- c("redcap_id", "project_id", "is_complete_0", "tissue_0",
+               "is_complete_48", "tissue_48", "is_complete_192", "tissue_192",
+               "all_complete")
+
+  obj_vals <- sapply(db_vals, function(x) {
+    val <- self[[x]]
+    if (is.null(val) | is.na(val)) {
+      return('null')
+    } else {
+      return(val)
+    }
+  })
+
+  query <- paste0(
+    'INSERT INTO patient (',
+    paste(names(obj_vals), collapse = ", "),
+    ') VALUES (',
+    paste(obj_vals, collapse = ", "),
+    ');'
+  )
+
+  dbGetQuery(db_con, query)
+
+  # we have auto incrementing keys so our recently inserted value will be our
+  # maximum
+  new_id <- dbGetQuery(db_con, 'select ifnull(max(id), 0) from patient;')
+  self$id <- unname(unlist(new_id))
+
+
+})
+
+
+
+
+
+
+
+
+

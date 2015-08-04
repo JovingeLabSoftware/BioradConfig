@@ -8,6 +8,8 @@ library(reshape2)
 library(BioradConfig)
 
 
+setwd('../')
+
 # bring in the barcode dump from redcap ----------------------------------------
 
 
@@ -76,15 +78,9 @@ dbSendQuery(
   "redcap_id" INTEGER,
   "project_id" INTEGER,
   "is_complete_0" INTEGER,
-  "tissue_0" INTEGER,
   "is_complete_48" INTEGER,
-  "tissue_48" INTEGER,
   "is_complete_192" INTEGER,
-  "tissue_192" INTEGER,
-  "all_complete" INTEGER,
-  FOREIGN KEY(tissue_0) REFERENCES tissue(id),
-  FOREIGN KEY(tissue_48) REFERENCES tissue(id),
-  FOREIGN KEY(tissue_192) REFERENCES tissue(id)
+  "all_complete" INTEGER
   );'
 )
 
@@ -141,15 +137,14 @@ dbSendQuery(
 pat_tab <- cbind.data.frame(
   dat[,c("record_id", "pid")],
   data.frame(
-    is_complete_0 = 0, tissue_0 = 'null', is_complete_48 = 0, tissue_48 = 'null',
-    is_complete_192 = 0, tissue_192 = 'null', all_complete = 0
+    is_complete_0 = 0, is_complete_48 = 0, is_complete_192 = 0, all_complete = 0
   )
 )
 pat_tab <- pat_tab[!duplicated(pat_tab),]
 
 names(pat_tab) <- c(
-  "redcap_id", "project_id", "is_complete_0", "tissue_0", "is_complete_48",
-  "tissue_48", "is_complete_192", "tissue_192", "all_complete"
+  "redcap_id", "project_id", "is_complete_0", "is_complete_48",
+  "is_complete_192", "all_complete"
 )
 
 inserts <- paste0(

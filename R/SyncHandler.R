@@ -104,16 +104,11 @@ SyncHandler$set("public", "get_redcap_data", function() {
 })
 
 
-# updates an aliquots plate assignment in the database
+# gets all the aliquots associated with this redcap patient
 SyncHandler$set("public", "get_local_data", function(db_con) {
 
   # make sure db connection is right
   check_db(db_con)
-
-  # which patient is this?
-  q <- paste0("select id from patient where redcap_id = ", self$redcap_id,
-              " and project_id = ", self$redcap_project)
-  self$local_id <- unlist(dbGetQuery(db_con, q))
 
   # get all aliquots for that patient
   q <- paste0("select * from aliquot where patient_id = ", self$local_id)
@@ -122,47 +117,109 @@ SyncHandler$set("public", "get_local_data", function(db_con) {
 })
 
 
+
+# checks to see that a patient is in the local databse and creates one if it
+# is not
+SyncHandler$set("public", "get_patient", function(db_con) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  # find or create our patient
+  q <- paste0("select id from patient where redcap_id = ", self$redcap_id,
+              " and project_id = ", self$redcap_project)
+  db_value <- unlist(dbGetQuery(db_con, q))
+
+  if (length(db_value)) {
+    self$local_id <- db_value
+  } else {
+    pat <- Patient$new()
+    pat$redcap_id <- self$redcap_id
+    pat$project_id <- self$redcap_project
+    pat$is_complete_0 <- pat$is_complete_48 <- pat$is_complete_192 <- 0
+    pat$save_to_db(db_con)
+    self$local_id <- pat$id
+  }
+})
+
+
+# confirms all the tissues for the necessary tissues are in LabGuru for the
+# given barcodes; creates any missing tissues and adds them to the database
+SyncHandler$set("public", "check_tissues", function(db_con) {
+
+  # make sure db connection is right
+  check_db(db_con)
+
+  # tissues associated with our patient
+  tmp <- data.frame(
+    timepoint = get_tp(self$redcap_data$bc_string),
+    base_bc = sapply(strsplit(self$redcap_data$barcode, '-'), function(x) x[1]),
+    stringsAsFactors = FALSE
+  )
+  tmp <- tmp[!is.na(tmp$base_bc),]
+  tmp <- tmp[!duplicated(tmp), ]
+
+
+  # add any tissues not currently in the database
+  all_tissues <- dbGetQuery(db_con, 'select * from tissue;')
+  miss_sel <- which(!(tmp$base_bc %in% all_tissues$labguru_name))
+
+  if (length(miss_sel)) {
+    for (i in seq_along(miss_sel)) {
+      tissue_descr <- paste(
+        paste("Patient Type:", ifelse(
+          grepl("CTRL", tmp$base_bc[miss_sel[i]]), 'control',
+          'patient'
+        )),
+        paste("Collection Timepoint:", tmp$timepoint[miss_sel[i]]),
+        sep = "<br/>"
+      )
+
+      tissue_info <- create_tissue(base_id = tmp$base_bc[miss_sel[i]],
+                                   token = self$guru_token,
+                                   descr = tissue_descr)
+
+      query <- paste0(
+        'INSERT INTO tissue (labguru_id, labguru_name, labguru_uuid) VALUES (',
+        paste(tissue_info['id'], wrap(tissue_info['name']),
+              wrap(tissue_info['uuid']), sep = ", "),
+        ');'
+      )
+      dbSendQuery(db_con, query)
+    }
+  }
+})
+
+
+
+# confirms all necessary boxes are in labguru; creates any that are missing
+SyncHandler$set("public", "check_boxes", function(db_con) {
+
+  check_db(db_con)
+  all_boxes <- unique(self$redcap_data$box)
+  tk <- is.na(all_boxes) | all_boxes == ''
+  all_boxes <- all_boxes[!tk]
+  db_boxes <- dbGetQuery(db_con, 'select * from box;')
+  miss_sel <- which(!(all_boxes %in% db_boxes$labguru_name))
+  if (length(miss_sel)) {
+    for (i in seq_along(miss_sel)) {
+      box_info <- create_box(box_name = all_boxes[miss_sel[i]],
+                             token = self$guru_token)
+      query <- paste0(
+        'INSERT INTO box (labguru_id, labguru_name) VALUES (',
+        paste(box_info['id'], wrap(box_info['name']), sep = ", "),
+        ');'
+      )
+      dbSendQuery(db_con, query)
+    }
+  }
+})
+
+
+
 # creates a set of new aliquots in the database and in LabGuru
 # new_idx is a vector giving the rows in self$redcap_data to create
 SyncHandler$set("public", "create_new_aliquots", function(db_con, new_idx) {
-
-  get_tp <- Vectorize(function(field_name) {
-    tu <- setNames(c('0 Hour', '48 Hour', '8 Day'), c("baseline", "48", "8"))
-    return(unname(tu[strsplit(field_name, '_')[[1]][3]]))
-  })
-
-
-  ## we need to be sure a parent patient object exists (and create one if it doesn't)
-  ## so we can associate the correct IDs here with our aliquot
-  ##
-  ## the creation of the Patient object needs to be done within the patient class
-  ##
-  ## we should also confirm the tissue object lives in LabGuru and create it if it
-  ## does not exist. it seems like we should add foreign keys from the patient table out
-  ## to the tissue table to associate the proper tissues with the the patient draws (timepoints)
-  ##
-  ## once all that housekeeping is in place (and all of those values have been
-  ## synced to the database and to labguru), then we can go about creating our
-  ## new aliquots and associating them with the necessary information
-  ##
-  ## need to be careful to only create new fields in the db and not remove any.
-  ## this should preserve functionality of plate configuration app, but we
-  ## will need to test extensively in order to confirm
-
-  ## gameplan:
-  ##
-  ##  1. update database schema to inlcude foreign keys to tissues in patient table
-  ##  2. work out the best way to add tissues for a patient
-  ##      - perhaps we will check to see all these exist when data comes in,
-  ##        create them if they don't, and associate accordingly
-  ##      - something like a create_tissues() function in the SyncHandler class
-  ##  3. write the rest of the code you were going to to create the aliquots now
-  ##     that you have all the info you need
-
-
-
-
-
 
   # build up a dataframe to dump in our database for all our new aliquots...
   new_alis <- data.frame(matrix(NA, ncol = ncol(self$db_data),
@@ -205,20 +262,23 @@ SyncHandler$set("public", "sync_data", function(db_con) {
 
   check_db(db_con)
 
+  # make sure our patient exists and set our local_id field telling us what the
+  # ID of the patient in the database is
+  self$get_patient(db_con)
 
-  #####
-  # THE FIRST THING WE NEED TO DO IS CHECK TO SEE IF THE PATIENT IS ALREADY
-  # IN OUR DATABASE AND THAT ALL CORRESPONDING TISSUES EXIST IN LABGURU AND IN
-  # OUR DATABASE (BOTH PATIENT AND TISSUE TABLES)
-  ###
-
-
-
-  # THEN WE CAN GO ABOUT UPDATING ALL THE INFORMATION ABOUT THE ALIQUOTS
-
-
-  # get our data from our data sources
+  # get all the data we need from REDCap -- used for setting tissues
   self$get_redcap_data()
+
+  # make sure all the tissues exist
+  self$check_tissues(db_con)
+
+  # make sure all the boxes exist
+  self$check_boxes(db_con)
+
+
+
+
+  # grab local data to compare with what is in REDCap
   self$get_local_data(db_con)
 
 
@@ -318,6 +378,8 @@ SyncHandler$set("public", "demo", function() {
 
   s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 206,
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
+
+  s$get_patient(db_con)
 
   s$get_redcap_data()
   s$get_local_data(db_con)

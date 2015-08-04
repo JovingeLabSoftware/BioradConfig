@@ -166,22 +166,6 @@ Aliquot$set("public", "get_guru_locstring", function() {
 })
 
 
-# sets the patient ID for the current aliquot and returns its value
-# will create the patient in the database if it does not exist
-Aliquot$set("public", "get_patient", function(db_con) {
-
-  # check to see
-  if (is.null(self$patient_id) | is.na(self$patient_id)) {
-    check_db(db_con)
-    qstring <- paste0('select * from patient where redcap_id = ',
-                      self$redcap_id, ';')
-    dbSendQuery(db_con, qstring)
-
-
-  } else {
-    return(self$patient_id)
-  }
-})
 
 
 
