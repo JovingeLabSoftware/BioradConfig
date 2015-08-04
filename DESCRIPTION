@@ -21,5 +21,6 @@ Collate:
     'Aliquot.R'
     'Patient.R'
     'Plate.R'
-    'guru-utils.R'
     'redcap-utils.R'
+    'guru-utils.R'
+    'SyncHandler.R'

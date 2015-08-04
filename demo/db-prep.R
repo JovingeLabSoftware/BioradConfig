@@ -106,7 +106,26 @@ dbSendQuery(
   );'
 )
 
+# also create tables for LabGuru tracking so we don't have to beat the API to
+# death during our sync calls
+dbSendQuery(
+  db,
+  'CREATE TABLE box
+  ( "id" INTEGER PRIMARY KEY,
+  "labguru_id" INTEGER,
+  "labguru_name" TEXT
+  );'
+)
 
+dbSendQuery(
+  db,
+  'CREATE TABLE tissue
+  ( "id" INTEGER PRIMARY KEY,
+  "labguru_id" INTEGER,
+  "labguru_name" TEXT,
+  "labguru_uuid" TEXT
+  );'
+)
 
 
 
@@ -202,7 +221,7 @@ sapply(inserts, function(x)
 
 # add in all our LabGuru information -------------------------------------------
 
-gtok <- readRDS('~/.guru-token.rds')
+gtok <- readRDS('~/.labguru/token.rds')
 gbox <- get_all(token = gtok, data_type = 'boxes')
 gbox <- do.call(rbind, lapply(gbox, function(x) x[,c('id', 'name')]))
 gtis <- get_all(token = gtok, data_type = 'tissues')
@@ -223,7 +242,11 @@ gtub <-
 
 # there is an error on one off the calls for a "page" of aliquots
 # figure out which ones these are and grab them one by one
-id_range <- seq(1, max(gtub$id), 10)
+maxx <- max(11501 + 1000, max(gtub$id))
+id_range <- seq(1, maxx, 10)
+
+
+
 missed <- id_range[which(!(id_range %in% gtub$id))]
 miss_tubes <- lapply(missed, function(x) {
   tryCatch({
@@ -342,6 +365,38 @@ for (i in seq_along(ali_list)) {
 }
 
 
+
+# write out labguru information into the database ------------------------------
+
+#
+names(gbox) <- c("labguru_id", "labguru_name")
+
+
+inserts <- paste0(
+  'INSERT INTO box (',
+  paste(names(gbox), collapse = ", "),
+  ') VALUES (',
+  apply(gbox, 1, function(x)
+    paste(x[1], wrap(x[2]), sep = ", ")),
+  ');'
+)
+
+sapply(inserts, function(x)
+  dbGetQuery(db, x)) # push all the records in...
+
+
+names(gtis) <- c("labguru_id", "labguru_name", "labguru_uuid")
+inserts <- paste0(
+  'INSERT INTO tissue (',
+  paste(names(gtis), collapse = ", "),
+  ') VALUES (',
+  apply(gtis, 1, function(x)
+    paste(x[1], wrap(x[2]), wrap(x[3]), sep = ", ")),
+  ');'
+)
+
+sapply(inserts, function(x)
+  dbGetQuery(db, x)) # push all the records in...
 
 
 

@@ -58,7 +58,7 @@ SyncHandler <- R6::R6Class(
       self$redcap_project <- project_id
       self$redcap_instrument <- instrument
       self$redcap_token <- redcap_token
-      self$redcap_url <- redcap_token
+      self$redcap_url <- redcap_url
       self$guru_token <- guru_token
     },
 
@@ -121,22 +121,6 @@ SyncHandler$set("public", "get_local_data", function(db_con) {
 })
 
 
-# some code for testing
-SyncHandler$set("private", "testing", function() {
-  sqlite <- dbDriver("SQLite")
-  dbname <- "inst/extdata/barcode.db"
-  db_con <- dbConnect(sqlite, dbname)
-
-  self <- SyncHandler$new()
-
-
-})
-
-
-
-
-
-
 # updates an aliquots plate assignment in the database
 SyncHandler$set("public", "sync_data", function(db_con) {
 
@@ -146,15 +130,33 @@ SyncHandler$set("public", "sync_data", function(db_con) {
   self$get_redcap_data()
   self$get_local_data(db_con)
 
+  # run through our values and see what is different or missing
+  to_update <- c()
+  to_add <- c()
+
+  for (i in 1:nrow(self$redcap_data)) {
+
+  }
+
+})
 
 
+# some code for testing
+SyncHandler$set("public", "demo", function() {
 
+  sqlite <- dbDriver("SQLite")
+  dbname <- "inst/extdata/barcode.db"
+  db_con <- dbConnect(sqlite, dbname)
 
+  tok <- readRDS('~/.redcap/ecmo/token.rds')
+  uri <- readRDS('~/.redcap/ecmo/uri.rds')
+  gtok <- readRDS('~/.labguru/token.rds')
 
+  s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 206,
+                       redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
-
-
-
+  s$get_redcap_data()
+  s$get_local_data(db_con)
 
 })
 

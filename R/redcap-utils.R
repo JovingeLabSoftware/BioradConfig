@@ -170,7 +170,7 @@ barcode_api_call <- function() {
 
   token <- readRDS("~/.redcap/ecmo/token.rds")
   api_payload <- create_api_config(api_url = uri, token = token)
-  dd <- get_data_dict(uri = api_payload$url, token = api_payload$tok)
+  dd <- get_data_dict(api_payload)
   field_master <- c("record_id", grep("^bc", dd$field_name, value = TRUE))
   ecmo <- pull_barcodes(api_payload, field_master)
   ecmo_out <- cbind.data.frame(data.frame(pid = 52), ecmo)
@@ -180,7 +180,7 @@ barcode_api_call <- function() {
 
   token <- readRDS("~/.redcap/controls/token.rds")
   api_payload <- create_api_config(api_url = uri, token = token)
-  dd <- get_data_dict(uri = api_payload$url, token = api_payload$tok)
+  dd <- get_data_dict(api_payload)
   field_master <- c("record_id", grep("^bc", dd$field_name, value = TRUE))
   controls <- pull_barcodes(api_payload, field_master)
   ctrl_out <- cbind.data.frame(data.frame(pid = 65), controls)
