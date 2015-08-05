@@ -324,9 +324,13 @@ update_tissue <- function(id, name, token, description = NULL,
 #'
 #' @param id The numeric ID of the tube
 #' @param token A valid API token
-#' @param name The character name of the tissue
-#' @param remarks An updated description of the tube
-#' @param remarks An updated description of the tube
+#' @param name The character name of the tube
+#' @param remarks An updated description for the tube
+#' @param barcode An updated barcode for the tube
+#' @param box_id An updated holding box for the tube (numeric LabGuru ID)
+#' @param location_in_box An updated box location for the tube
+#' @param sample_uuid An updated tissue to associate with the tube
+#' @param member_id An updated owner for the tube
 #'
 #' @export
 
@@ -349,4 +353,21 @@ update_tube <- function(id, token, name = NULL, remarks = NULL, barcode = NULL,
   # send put request
   res <- putter(api_route = 'tubes', id = id, data = payload)
   return(jsonlite::fromJSON(httr::content(res, 'text')))
+}
+
+
+get_guru_locstring <- function(bc, tp) {
+  tlu <- setNames(c('cytokine', 'pbmc', 'neutrophil'), c('CT', 'PB', 'NT'))
+  tstr <- strsplit(bc, '-')[[1]][2]
+  stype <- ifelse(is.na(tstr), 'unknown', tlu[tstr])
+  tube_descr <- paste(
+    paste("Sample Type:", stype),
+    paste("Patient Type:", ifelse(
+      grepl("CTRL", bc), 'control',
+      'patient'
+    )),
+    paste("Collection Timepoint:", tp),
+    sep = "<br/>"
+  )
+  return(tube_descr)
 }

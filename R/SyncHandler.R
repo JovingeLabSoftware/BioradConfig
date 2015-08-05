@@ -9,7 +9,11 @@
 #'
 #' @format \code{\link{SyncHandler}} class generator
 #'
-#' @usage \code{sync = SyncHandler$new()}
+#' @usage \code{
+#' sync <- SyncHandler$new(project_id, instrument, redcap_id, redcap_token,
+#'                        guru_token, redcap_url)
+#' sync$sync_data()
+#' }
 #'
 #' @keywords data
 #'
@@ -27,6 +31,8 @@ SyncHandler <- R6::R6Class(
     redcap_data = NULL,
     db_data = NULL,
     local_id = NA,
+    to_create = NA,
+    to_update = NA,
 
 
     # a SyncHander should be initialized with data from a REDCap DET POST &
@@ -90,7 +96,6 @@ SyncHandler$set("public", "get_redcap_data", function() {
   starts <- seq(2, ncol(barcodes), 3)
   self$redcap_data <- do.call(rbind, lapply(starts, function(x) {
     cbind.data.frame(
-      barcodes[ ,1],
       data.frame(bc_string = names(barcodes)[x], stringsAsFactors = FALSE),
       data.frame(
         barcode = barcodes[,x],
@@ -220,42 +225,135 @@ SyncHandler$set("public", "check_boxes", function(db_con) {
 
 
 
+# figures out what needs to be updated and what needs to be added to LabGuru
+# by diffing our data sets; writes results to self$to_create = NA and
+# self$to_update
+SyncHandler$set("public", "find_changes", function() {
+
+  # run through our values and see what is different or missing
+  to_update <- c()
+  to_add <- c()
+
+  for (i in 1:nrow(self$redcap_data)) {
+    if (self$redcap_data$barcode[i] != "") {
+
+      sel <- which(self$db_data[['barcode']] == self$redcap_data[['barcode']][i])
+
+      if (!length(sel)) {
+        to_add <- c(to_add, i)
+      }
+      else if (length(sel) == 1) {
+        al <- Aliquot$new(self$db_data[sel, ])
+        bmatch <- al$box_number == self$redcap_data[['box']][i]
+        lmatch <- al$get_loc() == self$redcap_data[['location']][i]
+        if (!(bmatch & lmatch)) to_update <- c(to_update, i)
+
+      } else {
+
+        # figure out which one of the multiple ones is the real match
+        al_match <- lapply(sel, function(x) Aliquot$new(self$db_data[x, ]))
+        bmatch <- sapply(al_match, function(x) x$box_number) == self$redcap_data[['box']][i]
+        lmatch <- sapply(al_match, function(x) x$get_loc()) == self$redcap_data[['location']][i]
+        perf_match <- bmatch & lmatch
+
+        # if none of the existing aliquots were perfect matches, then we need to
+        # add a new one or update it -- how do we know!? i will default to adding it for now
+        if (sum(perf_match) == 0) {
+          to_add <- c(to_add, i)
+        } else if (sum(perf_match) > 1) {
+          print('This row matches multiple entries in our current database:')
+          print(self$redcap_data[i, ])
+          print('')
+          stop('This should not be possible...')
+
+        }
+      }
+    }
+  }
+
+  if (length(to_add))
+    self$to_create <- self$redcap_data[to_add, ]
+
+  if (length(to_update))
+    self$to_update <- self$redcap_data[to_update, ]
+
+})
+
+
+
+
 # creates a set of new aliquots in the database and in LabGuru
-# new_idx is a vector giving the rows in self$redcap_data to create
-SyncHandler$set("public", "create_new_aliquots", function(db_con, new_idx) {
+SyncHandler$set("public", "create_new_aliquots", function(db_con) {
 
-  # build up a dataframe to dump in our database for all our new aliquots...
-  new_alis <- data.frame(matrix(NA, ncol = ncol(self$db_data),
-                                nrow = nrow(self$redcap_data)))
-  names(new_alis) <- names(self$db_data)
-  new_alis <- new_alis[,-1]
-  new_alis$barcode <- self$redcap_data$barcode
-  new_alis$timepoint <- get_tp(self$redcap_data$bc_string)
-  new_alis$redcap_id <- self$redcap_id
+  if (is.na(self$to_create) | (nrow(self$to_create) == 0)) {
+    print('No aliquots to create...')
+    return()
+  } else {
+    for (i in 1:nrow(self$to_create)) {
 
+      # pull some data from the database
+      tissue_info <- dbGetQuery(
+        conn = db_con,
+        statement = paste0('select * from tissue where labguru_name = ',
+                           wrap(get_base_bc(self$to_create$barcode[i])),
+                           ';'))
 
-  nrow(new_alis) <- nrow(self$redcap_data)
-
-
-
-  inserts <- paste0(
-    'INSERT INTO aliquot (',
-    paste(names(ali_tab), collapse = ", "),
-    ') VALUES (',
-    apply(ali_tab, 1, function(x)
-      paste(
-        x[1], x[2], wrap(x[3]), x[4], x[5],
-        wrap(x[6]), wrap(x[7]), x[8], wrap(x[9]),
-        x[10], x[11], x[12], x[13], sep = ", "
-      )),
-    ');'
-  )
-
-  sapply(inserts, function(x)
-    dbGetQuery(db, x)) # push all the aliquots in...
+      box_info <- dbGetQuery(
+        conn = db_con,
+        statement = paste0('select * from tissue where labguru_name = ',
+                           wrap(self$to_create$box[i]),
+                           ';'))
 
 
+      # set the fields that we can
+      new_ali <- data.frame(matrix(NA, ncol = ncol(self$db_data), nrow = 1))
+      names(new_ali) <- names(self$db_data)
+      tk <- which(names(new_ali) %in% c("id", "plate_id", "plate_row", "plate_col"))
+      new_ali <- new_ali[,-tk]
 
+      new_ali$barcode <- self$to_create$barcode[i]
+      new_ali$timepoint <- get_tp(self$to_create$bc_string)
+      new_ali$redcap_id <- self$redcap_id
+      new_ali$patient_id <- self$local_id
+      new_ali$is_depleted <- 0
+      new_ali$box_number <- self$to_create$box[i]
+      new_ali$box_row <- substr(self$to_create$location[i], 1, 1)
+      new_ali$box_col <- substr(self$to_create$location[i], 2, 2)
+      new_ali$guru_box_id <- box_info$labguru_id
+      new_ali$guru_tissue_id <- tissue_info$labguru_id
+
+
+      print(paste('Creating tube for', new_ali$barcode, 'in LabGuru...'))
+
+      tube_info <- create_tube(
+        tube_name = new_ali$barcode,
+        tube_barcode = new_ali$barcode,
+        box = new_ali$guru_box_id,
+        box_location = alpha_to_guru(self$to_create$location[i]),
+        tissue_uuid = tissue_info$labguru_uuid,
+        tube_notes = get_guru_locstring(new_ali$barcode, new_ali$timepoint),
+        token = self$guru_token
+        )
+
+      new_ali$guru_tube_id <- tube_info[['id']]
+      new_ali$in_guru <- 1
+      x <- unlist(new_ali[1,])
+
+      ins <- paste0(
+        'INSERT INTO aliquot (',
+        paste(names(new_ali), collapse = ", "),
+        ') VALUES (',
+          paste(
+            x[1], wrap(x[2]), x[3], x[4], x[5],
+            x[6], wrap(x[7]), wrap(x[8]), x[9],
+            x[10], wrap(x[11]), x[12], sep = ", "
+          ),
+        ');'
+      )
+      dbSendQuery(db_con, ins)
+
+    }
+  }
 
 })
 
@@ -278,102 +376,17 @@ SyncHandler$set("public", "sync_data", function(db_con) {
   # make sure all the boxes exist
   self$check_boxes(db_con)
 
-
   # grab local data to compare with what is in REDCap
   self$get_local_data(db_con)
 
-
-
-
-  ###
-  # this next part needs to get wrapped up in one or two methods
-  # something that will do all this checking and return the indicies we need to
-  # update or add
-  # or perhaps the selection of the indicies could just be in the code that
-  # actually does the updating or adding??? <-- this is probably the better way
-  # to do it
-  ###
-
-  ###
-  # still need to implement update_one() in guru-utils.R
-  ###
-
-
-
-  # run through our values and see what is different or missing
-  to_update <- c()
-  to_add <- c()
-  for (i in 1:nrow(self$redcap_data)) {
-    sel <- which(self$db_data[['barcode']] == self$redcap_data[['barcode']][i])
-
-    if (!length(sel)) {
-      to_add <- c(to_add, i)
-    }
-    else if (length(sel) == 1) {
-
-      al <- Aliquot$new(self$db_data[sel, ])
-      bmatch <- al$box_number == self$redcap_data[['box']][i]
-      lmatch <- al$get_loc() == self$redcap_data[['location']][i]
-      if (!(bmatch & lmatch)) to_update <- c(to_update, i)
-
-    } else {
-
-      # figure out which one of the multiple ones is the real match
-      al_match <- lapply(sel, function(x) Aliquot$new(self$db_data[x, ]))
-      bmatch <- sapply(al_match, function(x) x$box_number) == self$redcap_data[['box']][i]
-      lmatch <- sapply(al_match, function(x) x$get_loc()) == self$redcap_data[['location']][i]
-      perf_match <- bmatch & lmatch
-
-      # if none of the existing aliquots were perfect matches, then we need to
-      # add a new one or update it -- how do we know!? i will default to adding it for now
-      if (sum(perf_match) == 0) {
-        to_add <- c(to_add, i)
-      } else if (sum(perf_match) > 1) {
-        print('This row matches multiple entries in our current database:')
-        print(self$redcap_data[i, ])
-        print('')
-        stop('This should not be possible...')
-
-      }
-    }
-  }
+  # figure out which aliquots need to be created and updated
+  self$find_changes()
 
   # add all the new aliquots
-  self$create_new_aliquots(db_con, to_add)
+  self$create_new_aliquots(db_con)
 
-
-
-  new_alis <- self$db_data[0, ]
-
-
-
-  # we have auto incrementing keys so our recently inserted value will be our
-  # maximum
-  plate_id <- dbGetQuery(db_con, 'select ifnull(max(id), 0) from plate;')
-  self$id <- unname(unlist(plate_id))
-
-
-  inserts <- paste0(
-    'INSERT INTO aliquot (',
-    paste(names(ali_tab), collapse = ", "),
-    ') VALUES (',
-    apply(ali_tab, 1, function(x)
-      paste(
-        x[1], x[2], wrap(x[3]), x[4], x[5],
-        wrap(x[6]), wrap(x[7]), x[8], wrap(x[9]),
-        x[10], x[11], x[12], x[13], sep = ", "
-      )),
-    ');'
-  )
-
-  sapply(inserts, function(x)
-    dbGetQuery(db, x)) # push all the aliquots in...
-
-
-
-
-
-  # update all the ones that changed
+  # upate those that need to be updated
+  self$update_aliquots(db_con)
 
 })
 
@@ -397,7 +410,6 @@ SyncHandler$set("public", "demo", function() {
   s$get_redcap_data()
   s$check_boxes(db_con)
   s$check_tissues(db_con)
-
   s$get_local_data(db_con)
 
 })

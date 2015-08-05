@@ -15,3 +15,7 @@ get_tp <- Vectorize(function(field_name) {
   tu <- setNames(c('0 Hour', '48 Hour', '8 Day'), c("baseline", "48", "8"))
   return(unname(tu[strsplit(field_name, '_')[[1]][3]]))
 })
+
+get_base_bc <- function(full_barcode) {
+  strsplit(full_barcode, '-')[[1]][1]
+}

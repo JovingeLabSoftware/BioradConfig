@@ -357,7 +357,7 @@ for (i in seq_along(ali_list)) {
     ali$update_value_in_db(db_con = db, column_name = 'guru_tube_id',
                            value = tube_info[['id']])
     ali$update_value_in_db(db_con = db, column_name = 'guru_tissue_id',
-                           value = tiss_uuid)
+                           value = tiss_id)
     ali$update_value_in_db(db_con = db, column_name = 'guru_box_id',
                            value = gbox$id[bsel])
     ali$update_value_in_db(db_con = db, column_name = 'in_guru', value = 1)

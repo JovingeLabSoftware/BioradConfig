@@ -6,7 +6,11 @@
 \title{SyncHandler class}
 \format{\code{\link{SyncHandler}} class generator}
 \usage{
-\code{sync = SyncHandler$new()}
+\code{
+sync <- SyncHandler$new(project_id, instrument, redcap_id, redcap_token,
+                       guru_token, redcap_url)
+sync$sync_data()
+}
 }
 \description{
 A class to handle syncing our data in REDCap, DB, and LabGuru.

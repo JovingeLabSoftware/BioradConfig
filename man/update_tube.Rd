@@ -13,11 +13,19 @@ update_tube(id, token, name = NULL, remarks = NULL, barcode = NULL,
 
 \item{token}{A valid API token}
 
-\item{name}{The character name of the tissue}
+\item{name}{The character name of the tube}
 
-\item{remarks}{An updated description of the tube}
+\item{remarks}{An updated description for the tube}
 
-\item{remarks}{An updated description of the tube}
+\item{barcode}{An updated barcode for the tube}
+
+\item{box_id}{An updated holding box for the tube (numeric LabGuru ID)}
+
+\item{location_in_box}{An updated box location for the tube}
+
+\item{sample_uuid}{An updated tissue to associate with the tube}
+
+\item{member_id}{An updated owner for the tube}
 }
 \description{
 This function lets you update an existing tube via the LabGuru API. Values
