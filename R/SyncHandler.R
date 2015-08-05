@@ -279,8 +279,6 @@ SyncHandler$set("public", "sync_data", function(db_con) {
   self$check_boxes(db_con)
 
 
-
-
   # grab local data to compare with what is in REDCap
   self$get_local_data(db_con)
 

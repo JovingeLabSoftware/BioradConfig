@@ -11,7 +11,7 @@ get_one(token, id, data_type)
 
 \item{id}{The ID of the object you would like to retrieve}
 
-\item{data_type}{What kind of object tube, tissue, etc}
+\item{data_type}{What kind of object \code{tubes}, \code{tissues}, or \code{boxes}}
 }
 \description{
 This function allows you to pull something (tube, tissue, etc) from

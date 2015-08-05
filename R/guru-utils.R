@@ -5,7 +5,7 @@
 #'
 #' @param token A valid LabGuru API token
 #' @param id The ID of the object you would like to retrieve
-#' @param data_type What kind of object tube, tissue, etc
+#' @param data_type What kind of object \code{tubes}, \code{tissues}, or \code{boxes}
 #'
 #' @export
 #'
@@ -76,7 +76,7 @@ get_all <- function(token, data_type = 'boxes') {
 }
 
 
-# generic posting interface
+# generic POST interface
 poster <- function(api_route, data) {
   req <- httr::POST(
     url = paste0("https://api.labguru.com/api/v1/", api_route, ".json"),
@@ -266,8 +266,87 @@ check_guru_key <- function(token) {
 
 
 
+# generic PUT interface
+putter <- function(api_route, id, data) {
+  req <- httr::PUT(
+    url = paste0("https://api.labguru.com/api/v1/", api_route, "/", id, ".json"),
+    config = httr::add_headers("Content-Type" = "application/json"),
+    body = jsonlite::toJSON(data, auto_unbox = TRUE)
+  )
+  if (req$status_code != 200L) {
+    stop(paste0('There was an error creating ', data[['name']]))
+  } else {
+    return(req)
+  }
+}
 
 
+#' Update a tissue in LabGuru
+#'
+#' This function lets you update an existing tissue via the LabGuru API.
+#'
+#' @param id The numeric ID of the tissue
+#' @param name The character name of the tissue
+#' @param token A valid API token
+#' @param description An updated description of the tissue
+#' @param tissue_type An updated description of the tissue
+#'
+#' @export
+
+update_tissue <- function(id, name, token, description = NULL,
+                          tissue_type = NULL) {
+
+  if (missing(id)) stop('You must provide labguru_id')
+  if (missing(name)) stop('You must provide labguru_name')
+  if (missing(token)) stop('You must provide token')
+
+  # only pass non-null args
+  item_list <- as.list(environment())
+  sel <- !(sapply(item_list, is.null) | names(item_list) == 'token')
+  item_list <- item_list[sel]
 
 
+  payload <- list(
+    item = item_list,
+    token = token
+  )
 
+  # send put request
+  res <- putter(api_route = 'tissues', id = id, data = payload)
+  return(jsonlite::fromJSON(httr::content(res, 'text')))
+}
+
+
+#' Update a tube in LabGuru
+#'
+#' This function lets you update an existing tube via the LabGuru API. Values
+#' set as \code{NULL} will not be updated.
+#'
+#' @param id The numeric ID of the tube
+#' @param token A valid API token
+#' @param name The character name of the tissue
+#' @param remarks An updated description of the tube
+#' @param remarks An updated description of the tube
+#'
+#' @export
+
+update_tube <- function(id, token, name = NULL, remarks = NULL, barcode = NULL,
+                        box_id = NULL, location_in_box = NULL,
+                        sample_uuid = NULL, member_id = NULL) {
+
+  if (missing(id)) stop('You must provide id')
+  if (missing(token)) stop('You must provide token')
+
+  # only pass non-null args
+  item_list <- as.list(environment())
+  sel <- !(sapply(item_list, is.null) | names(item_list) == 'token')
+  item_list <- item_list[sel]
+  payload <- list(
+    item = item_list,
+    token = token
+  )
+
+  # send put request
+  res <- putter(api_route = 'tubes', id = id, data = payload)
+  return(jsonlite::fromJSON(httr::content(res, 'text')))
+}
