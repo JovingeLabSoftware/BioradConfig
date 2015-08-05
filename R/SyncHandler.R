@@ -175,6 +175,8 @@ SyncHandler$set("public", "check_tissues", function(db_con) {
         sep = "<br/>"
       )
 
+      print(paste('Creating tissue:', tmp$base_bc[miss_sel[i]]))
+
       tissue_info <- create_tissue(base_id = tmp$base_bc[miss_sel[i]],
                                    token = self$guru_token,
                                    descr = tissue_descr)
@@ -203,6 +205,7 @@ SyncHandler$set("public", "check_boxes", function(db_con) {
   miss_sel <- which(!(all_boxes %in% db_boxes$labguru_name))
   if (length(miss_sel)) {
     for (i in seq_along(miss_sel)) {
+      print(paste('Creating box:', all_boxes[miss_sel[i]]))
       box_info <- create_box(box_name = all_boxes[miss_sel[i]],
                              token = self$guru_token)
       query <- paste0(
@@ -283,6 +286,19 @@ SyncHandler$set("public", "sync_data", function(db_con) {
 
 
 
+
+  ###
+  # this next part needs to get wrapped up in one or two methods
+  # something that will do all this checking and return the indicies we need to
+  # update or add
+  # or perhaps the selection of the indicies could just be in the code that
+  # actually does the updating or adding??? <-- this is probably the better way
+  # to do it
+  ###
+
+  ###
+  # still need to implement update_one() in guru-utils.R
+  ###
 
 
 
@@ -380,8 +396,10 @@ SyncHandler$set("public", "demo", function() {
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
   s$get_patient(db_con)
-
   s$get_redcap_data()
+  s$check_boxes(db_con)
+  s$check_tissues(db_con)
+
   s$get_local_data(db_con)
 
 })
