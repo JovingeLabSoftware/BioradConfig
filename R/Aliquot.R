@@ -48,6 +48,9 @@ Aliquot <- R6::R6Class(
         self$box_row <- db_row[['box_row']]
         self$box_col <- db_row[['box_col']]
         self$timepoint <- db_row[['timepoint']]
+        self$guru_tube_id <- db_row[['guru_tube_id']]
+        self$guru_box_id <- db_row[['guru_box_id']]
+        self$guru_tissue_id <- db_row[['guru_tissue_id']]
       } else {
         warning('No database row passed, creating empty object...')
       }
