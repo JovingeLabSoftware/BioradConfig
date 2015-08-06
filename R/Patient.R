@@ -111,15 +111,19 @@ Patient$set("public", "update_value_in_db", function(db_con, column_name,
 Patient$set("public", "save_to_db", function(db_con) {
   check_db(db_con)
 
-  db_vals <- c("redcap_id", "project_id", "is_complete_0", "tissue_0",
-               "is_complete_48", "tissue_48", "is_complete_192", "tissue_192",
-               "all_complete")
+  db_vals <- c(
+    "redcap_id", "project_id", "is_complete_0",
+    "is_complete_48", "is_complete_192",
+    "all_complete"
+  )
 
   obj_vals <- sapply(db_vals, function(x) {
     val <- self[[x]]
-    if (is.null(val) | is.na(val)) {
+    if (is.null(val)) {
       return('null')
-    } else {
+    } else if (is.na(val)) {
+      return('null')
+    }else {
       return(val)
     }
   })

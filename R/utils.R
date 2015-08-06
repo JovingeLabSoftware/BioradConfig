@@ -1,4 +1,5 @@
 
+
 check_db <- function(x) {
   if (missing(x))
     stop('You must provide a database connection...')
@@ -7,12 +8,15 @@ check_db <- function(x) {
     stop('This is not a SQLite database connection, try again...')
 }
 
-wrap <- function(x) paste0('"', x, '"')
-wrap2 <- function(x) paste0("'", x, "'")
+wrap <- function(x)
+  paste0('"', x, '"')
+wrap2 <- function(x)
+  paste0("'", x, "'")
 
 
 get_tp <- Vectorize(function(field_name) {
-  tu <- setNames(c('0 Hour', '48 Hour', '8 Day'), c("baseline", "48", "8"))
+  tu <-
+    setNames(c('0 Hour', '48 Hour', '8 Day'), c("baseline", "48", "8"))
   return(unname(tu[strsplit(field_name, '_')[[1]][3]]))
 })
 

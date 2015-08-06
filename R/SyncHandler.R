@@ -99,8 +99,8 @@ SyncHandler$set("public", "get_redcap_data", function() {
       data.frame(bc_string = names(barcodes)[x], stringsAsFactors = FALSE),
       data.frame(
         barcode = barcodes[,x],
-        box = barcodes[,x  + 1],
-        location = barcodes[,x  + 2],
+        box = barcodes[,x + 1],
+        location = barcodes[,x + 2],
         stringsAsFactors = FALSE
       )
     )
@@ -138,6 +138,7 @@ SyncHandler$set("public", "get_patient", function(db_con) {
   if (length(db_value)) {
     self$local_id <- db_value
   } else {
+    message('Creating new object for REDCap patient ', self$redcap_id)
     pat <- Patient$new()
     pat$redcap_id <- self$redcap_id
     pat$project_id <- self$redcap_project
@@ -180,7 +181,7 @@ SyncHandler$set("public", "check_tissues", function(db_con) {
         sep = "<br/>"
       )
 
-      print(paste('Creating tissue:', tmp$base_bc[miss_sel[i]]))
+      message('Creating tissue: ', tmp$base_bc[miss_sel[i]])
 
       tissue_info <- create_tissue(base_id = tmp$base_bc[miss_sel[i]],
                                    token = self$guru_token,
@@ -210,7 +211,7 @@ SyncHandler$set("public", "check_boxes", function(db_con) {
   miss_sel <- which(!(all_boxes %in% db_boxes$labguru_name))
   if (length(miss_sel)) {
     for (i in seq_along(miss_sel)) {
-      print(paste('Creating box:', all_boxes[miss_sel[i]]))
+      message('Creating box:', all_boxes[miss_sel[i]])
       box_info <- create_box(box_name = all_boxes[miss_sel[i]],
                              token = self$guru_token)
       query <- paste0(
@@ -261,9 +262,9 @@ SyncHandler$set("public", "find_changes", function() {
         if (sum(perf_match) == 0) {
           to_add <- c(to_add, i)
         } else if (sum(perf_match) > 1) {
-          print('This row matches multiple entries in our current database:')
-          print(self$redcap_data[i, ])
-          print('')
+          message('This row matches multiple entries in our current database:')
+          message(self$redcap_data[i, ])
+          message('\n')
           stop('This should not be possible...')
 
         }
@@ -280,13 +281,11 @@ SyncHandler$set("public", "find_changes", function() {
 })
 
 
-
-
 # creates a set of new aliquots in the database and in LabGuru
 SyncHandler$set("public", "create_new_aliquots", function(db_con) {
 
-  if (is.na(self$to_create) | (nrow(self$to_create) == 0)) {
-    print('No aliquots to create...')
+  if (!is.data.frame(self$to_create)) {
+    message('No aliquots to create...')
     return()
   } else {
     for (i in 1:nrow(self$to_create)) {
@@ -294,16 +293,21 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
       # pull some data from the database
       tissue_info <- dbGetQuery(
         conn = db_con,
-        statement = paste0('select * from tissue where labguru_name = ',
-                           wrap(get_base_bc(self$to_create$barcode[i])),
-                           ';'))
+        statement = paste0(
+          'select * from tissue where labguru_name = ',
+          wrap(get_base_bc(self$to_create$barcode[i])),
+          ';'
+        )
+      )
 
       box_info <- dbGetQuery(
         conn = db_con,
-        statement = paste0('select * from tissue where labguru_name = ',
-                           wrap(self$to_create$box[i]),
-                           ';'))
-
+        statement = paste0(
+          'select * from box where labguru_name = ',
+          wrap(self$to_create$box[i]),
+          ';'
+        )
+      )
 
       # set the fields that we can
       new_ali <- data.frame(matrix(NA, ncol = ncol(self$db_data), nrow = 1))
@@ -312,7 +316,7 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
       new_ali <- new_ali[,-tk]
 
       new_ali$barcode <- self$to_create$barcode[i]
-      new_ali$timepoint <- get_tp(self$to_create$bc_string)
+      new_ali$timepoint <- get_tp(self$to_create$bc_string[i])
       new_ali$redcap_id <- self$redcap_id
       new_ali$patient_id <- self$local_id
       new_ali$is_depleted <- 0
@@ -323,7 +327,7 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
       new_ali$guru_tissue_id <- tissue_info$labguru_id
 
 
-      print(paste('Creating tube for', new_ali$barcode, 'in LabGuru...'))
+      message('Creating tube for ', new_ali$barcode, ' in LabGuru...')
 
       tube_info <- create_tube(
         tube_name = new_ali$barcode,
@@ -333,21 +337,23 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
         tissue_uuid = tissue_info$labguru_uuid,
         tube_notes = get_guru_locstring(new_ali$barcode, new_ali$timepoint),
         token = self$guru_token
-        )
+      )
 
       new_ali$guru_tube_id <- tube_info[['id']]
       new_ali$in_guru <- 1
       x <- unlist(new_ali[1,])
 
+      message('Creating aliquot ', new_ali$barcode, ' in database...')
+
       ins <- paste0(
         'INSERT INTO aliquot (',
         paste(names(new_ali), collapse = ", "),
         ') VALUES (',
-          paste(
-            x[1], wrap(x[2]), x[3], x[4], x[5],
-            x[6], wrap(x[7]), wrap(x[8]), x[9],
-            x[10], wrap(x[11]), x[12], sep = ", "
-          ),
+        paste(
+          x[1], wrap(x[2]), x[3], x[4], x[5],
+          x[6], wrap(x[7]), wrap(x[8]), x[9],
+          x[10], wrap(x[11]), x[12], sep = ", "
+        ),
         ');'
       )
       dbSendQuery(db_con, ins)
@@ -358,10 +364,68 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
 })
 
 
+# updates storage box and location of any aliqouts if they were changed in REDCap
+SyncHandler$set("public", "update_aliquots", function(db_con) {
+
+  if (!is.data.frame(self$to_update)) {
+    message('No aliquots to update...')
+    return()
+  } else {
+    for (i in 1:nrow(self$to_update)) {
+
+      # grab some info from the database and create and aliquot
+      r <- dbGetQuery(conn = db_con,
+                      statement =
+                        paste0(
+                          'select * from aliquot where barcode = ',
+                          wrap(self$to_update$barcode[i])
+                        ))
+
+      # create our object and update its fields
+      al <- Aliquot$new(r)
+      al$box_number <- self$to_update$box[i]
+      al$box_row <- substr(self$to_update$location[i], 1, 1)
+      al$box_col <- as.numeric(substr(self$to_update$location[i], 2, 2))
+
+      if (self$local_id != al$patient_id) {
+        stop('You somehow managed to match a barcode but not a patient...?')
+      }
+
+      # update in our database
+      message('Updating location of ', self$to_update$barcode[i], " in database...")
+      al$update_value_in_db(db_con = db_con, column_name = 'box_number',
+                            value = al$box_number)
+      al$update_value_in_db(db_con = db_con, column_name = 'box_row',
+                            value = al$box_row)
+      al$update_value_in_db(db_con = db_con, column_name = 'box_col',
+                            value = al$box_col)
+
+      message('Updating location of ', self$to_update$barcode[i], " in LabGuru...")
+      new_box <-
+        unlist(dbGetQuery(
+          conn = db_con, statement = paste0(
+            "select labguru_id from box where labguru_name = ", wrap(al$box_number)
+          )
+        ))
+
+      update_tube(
+        id = al$guru_tube_id, token = self$guru_token,
+        box_id = new_box,
+        location_in_box = alpha_to_guru(al$get_loc())
+      )
+    }
+  }
+})
+
+
+
 # updates an aliquots plate assignment in the database
 SyncHandler$set("public", "sync_data", function(db_con) {
 
   check_db(db_con)
+
+  message('Beginning sync for patient ', self$redcap_id, ' from project ',
+          self$redcap_project, ' at ', Sys.time(), '...')
 
   # make sure our patient exists and set our local_id field telling us what the
   # ID of the patient in the database is
@@ -385,8 +449,14 @@ SyncHandler$set("public", "sync_data", function(db_con) {
   # add all the new aliquots
   self$create_new_aliquots(db_con)
 
-  # upate those that need to be updated
+  # update those that need to be updated
   self$update_aliquots(db_con)
+
+  message('Sync for patient ', self$redcap_id, ' from project ',
+          self$redcap_project, ' finished at ', Sys.time(), '...')
+
+  message('----------------------\n')
+
 
 })
 
@@ -403,14 +473,20 @@ SyncHandler$set("public", "demo", function() {
   uri <- readRDS('~/.redcap/ecmo/uri.rds')
   gtok <- readRDS('~/.labguru/token.rds')
 
-  s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 206,
+  # let's test this out -- creating dummy barcodes for one of our retrospective patients
+  # don't forget to delete these later....
+  # editing ID 2 in project 52
+  # BC00000
+  # BC00000-CT-01
+  # BC00000-CT-02
+  # BC00000-CT-03
+  # BC00000-CT-04
+  # FakeBox
+
+  s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 2,
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
-  s$get_patient(db_con)
-  s$get_redcap_data()
-  s$check_boxes(db_con)
-  s$check_tissues(db_con)
-  s$get_local_data(db_con)
+  s$sync_data(db_con = db_con)
 
 })
 
