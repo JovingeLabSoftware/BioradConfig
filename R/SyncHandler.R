@@ -211,7 +211,7 @@ SyncHandler$set("public", "check_boxes", function(db_con) {
   miss_sel <- which(!(all_boxes %in% db_boxes$labguru_name))
   if (length(miss_sel)) {
     for (i in seq_along(miss_sel)) {
-      message('Creating box:', all_boxes[miss_sel[i]])
+      message('Creating box: ', all_boxes[miss_sel[i]])
       box_info <- create_box(box_name = all_boxes[miss_sel[i]],
                              token = self$guru_token)
       query <- paste0(
@@ -482,8 +482,19 @@ SyncHandler$set("public", "demo", function() {
   # BC00000-CT-03
   # BC00000-CT-04
   # FakeBox
+  # BC00000-NT-01
+  # BC00000-NT-02
+  # BC00000-NT-03
+  # BC00000-NT-04
+  # FakeBox2
 
   s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 2,
+                       redcap_token = tok, guru_token = gtok, redcap_url = uri)
+
+  s$sync_data(db_con = db_con)
+
+
+  s <- SyncHandler$new(project_id = 52, instrument = 'pbmc', redcap_id = 2,
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
   s$sync_data(db_con = db_con)
