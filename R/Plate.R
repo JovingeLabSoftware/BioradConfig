@@ -93,7 +93,7 @@ Plate$set("public", "init_from_db", function(db_con, id) {
 
 
 
-Plate$set("public", "get_aliquots", function(db_con) {
+Plate$set("public", "get_aliquots", function(db_con, controls_only = FALSE) {
 
   # gets the aliquots needed to run our plate:
   #     - we randomly select 5 available aliquots to be run in triplicate
@@ -112,6 +112,11 @@ Plate$set("public", "get_aliquots", function(db_con) {
   # grab a list of all patients with samples to run and randomize
   pq <- "select * from patient where all_complete = 0;"
   patients <- RSQLite::dbGetQuery(conn = db_con, statement = pq)
+
+  if (controls_only) {
+    patients <- patients[patients$project_id == 65, ]
+  }
+
   patients <- patients[sample(nrow(patients)), ]
 
   # get all our aliquots!
