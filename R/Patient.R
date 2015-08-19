@@ -99,7 +99,7 @@ Patient$set("public", "update_value_in_db", function(db_con, column_name,
   check_db(db_con)
   if (is.character(value)) value <- wrap(value) # chars need to be wrapped
 
-  qstring <- paste0('update plate set ', column_name, ' = ', value,
+  qstring <- paste0('update patient set ', column_name, ' = ', value,
                     ' where id=', self$id, ';')
   dbSendQuery(db_con, qstring)
 })
