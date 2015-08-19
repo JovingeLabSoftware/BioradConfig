@@ -8,7 +8,7 @@ library(reshape2)
 library(BioradConfig)
 
 
-setwd('../')
+setwd('~/dbs')
 
 # bring in the barcode dump from redcap ----------------------------------------
 
@@ -55,7 +55,7 @@ dat$col <- as.numeric(substr(dat$location, 2, 2))
 # create our database -------------------------------------------
 
 sqlite <- dbDriver("SQLite")
-dbname <- "inst/extdata/barcode.db"
+dbname <- "barcode.db"
 if (file.exists(dbname))
   file.remove(dbname)
 db <- dbConnect(sqlite, dbname)

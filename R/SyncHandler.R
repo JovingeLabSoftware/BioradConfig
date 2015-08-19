@@ -92,19 +92,23 @@ SyncHandler$set("public", "get_redcap_data", function() {
                                 fnames = field_master,
                                 record_id = self$redcap_id)
 
-  # stack this data frame -- kind of awkward
-  starts <- seq(2, ncol(barcodes), 3)
-  self$redcap_data <- do.call(rbind, lapply(starts, function(x) {
-    cbind.data.frame(
-      data.frame(bc_string = names(barcodes)[x], stringsAsFactors = FALSE),
-      data.frame(
-        barcode = barcodes[,x],
-        box = barcodes[,x + 1],
-        location = barcodes[,x + 2],
-        stringsAsFactors = FALSE
+  if (nrow(barcodes)) {
+    # stack this data frame -- kind of awkward
+    starts <- seq(2, ncol(barcodes), 3)
+    self$redcap_data <- do.call(rbind, lapply(starts, function(x) {
+      cbind.data.frame(
+        data.frame(bc_string = names(barcodes)[x], stringsAsFactors = FALSE),
+        data.frame(
+          barcode = barcodes[,x],
+          box = barcodes[,x + 1],
+          location = barcodes[,x + 2],
+          stringsAsFactors = FALSE
+        )
       )
-    )
-  }))
+    }))
+  } else {
+    self$redcap_data <- NULL # make sure this is null even though it should be
+  }
 
 })
 
@@ -142,7 +146,7 @@ SyncHandler$set("public", "get_patient", function(db_con) {
     pat <- Patient$new()
     pat$redcap_id <- self$redcap_id
     pat$project_id <- self$redcap_project
-    pat$is_complete_0 <- pat$is_complete_48 <- pat$is_complete_192 <- 0
+    pat$is_complete_0 <- pat$is_complete_48 <- pat$is_complete_192 <- pat$all_complete <- 0
     pat$save_to_db(db_con)
     self$local_id <- pat$id
   }
@@ -434,23 +438,30 @@ SyncHandler$set("public", "sync_data", function(db_con) {
   # get all the data we need from REDCap -- used for setting tissues
   self$get_redcap_data()
 
-  # make sure all the tissues exist
-  self$check_tissues(db_con)
+  # only perform the syncing if the data already exists
+  if (!is.null(self$redcap_data)) {
 
-  # make sure all the boxes exist
-  self$check_boxes(db_con)
+    # make sure all the tissues exist
+    self$check_tissues(db_con)
 
-  # grab local data to compare with what is in REDCap
-  self$get_local_data(db_con)
+    # make sure all the boxes exist
+    self$check_boxes(db_con)
 
-  # figure out which aliquots need to be created and updated
-  self$find_changes()
+    # grab local data to compare with what is in REDCap
+    self$get_local_data(db_con)
 
-  # add all the new aliquots
-  self$create_new_aliquots(db_con)
+    # figure out which aliquots need to be created and updated
+    self$find_changes()
 
-  # update those that need to be updated
-  self$update_aliquots(db_con)
+    # add all the new aliquots
+    self$create_new_aliquots(db_con)
+
+    # update those that need to be updated
+    self$update_aliquots(db_con)
+
+  } else {
+    message("No barcodes in REDCap to sync. Exiting...")
+  }
 
   message('Sync for patient ', self$redcap_id, ' from project ',
           self$redcap_project, ' finished at ', Sys.time(), '...')
@@ -488,7 +499,7 @@ SyncHandler$set("public", "demo", function() {
   # BC00000-NT-04
   # FakeBox2
 
-  s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 2,
+  s <- SyncHandler$new(project_id = 65, instrument = 'cytokine', redcap_id = 65,
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
   s$sync_data(db_con = db_con)
