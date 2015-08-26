@@ -32,6 +32,7 @@ Aliquot <- R6::R6Class(
     box_row = NA,
     box_col = NA,
     timepoint = NA,
+    sample_type = NA,
 
 
     # initialize an aliquot object from a database row
@@ -51,6 +52,7 @@ Aliquot <- R6::R6Class(
         self$guru_tube_id <- db_row[['guru_tube_id']]
         self$guru_box_id <- db_row[['guru_box_id']]
         self$guru_tissue_id <- db_row[['guru_tissue_id']]
+        self$sample_type <- db_row[['sample_type']]
       } else {
         warning('No database row passed, creating empty object...')
       }

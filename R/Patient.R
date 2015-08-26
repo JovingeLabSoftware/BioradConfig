@@ -55,7 +55,8 @@ Patient$set("public", "get_aliquots_to_run", function(db_con) {
 
   aliquots <- RSQLite::dbGetQuery(
     conn = db_con,
-    statement = paste0("select * from aliquot where patient_id = ", self$id, " and is_depleted = 0 and plate_id is null;")
+    statement = paste0("select * from aliquot where patient_id = ", self$id,
+                       " and is_depleted = 0 and plate_id is null and sample_type = 'ct';")
   )
 
   if (!nrow(aliquots)) {

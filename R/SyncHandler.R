@@ -102,6 +102,7 @@ SyncHandler$set("public", "get_redcap_data", function() {
           barcode = barcodes[,x],
           box = barcodes[,x + 1],
           location = barcodes[,x + 2],
+          sample_type = strsplit(names(barcodes)[x], '_')[[1]][2],
           stringsAsFactors = FALSE
         )
       )
@@ -329,6 +330,7 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
       new_ali$box_col <- substr(self$to_create$location[i], 2, 2)
       new_ali$guru_box_id <- box_info$labguru_id
       new_ali$guru_tissue_id <- tissue_info$labguru_id
+      new_ali$sample_type <- self$to_create$sample_type[i]
 
 
       message('Creating tube for ', new_ali$barcode, ' in LabGuru...')
@@ -356,7 +358,7 @@ SyncHandler$set("public", "create_new_aliquots", function(db_con) {
         paste(
           x[1], wrap(x[2]), x[3], x[4], x[5],
           x[6], wrap(x[7]), wrap(x[8]), x[9],
-          x[10], wrap(x[11]), x[12], sep = ", "
+          x[10], wrap(x[11]), x[12], wrap(x[13]), sep = ", "
         ),
         ');'
       )
@@ -477,7 +479,7 @@ SyncHandler$set("public", "demo", function() {
 
   library(BioradConfig)
   sqlite <- dbDriver("SQLite")
-  dbname <- "inst/extdata/barcode.db"
+  dbname <- "~/dbs/barcode.db"
   db_con <- dbConnect(sqlite, dbname)
 
   tok <- readRDS('~/.redcap/ecmo/token.rds')
@@ -505,7 +507,7 @@ SyncHandler$set("public", "demo", function() {
   s$sync_data(db_con = db_con)
 
 
-  s <- SyncHandler$new(project_id = 52, instrument = 'pbmc', redcap_id = 2,
+  s <- SyncHandler$new(project_id = 52, instrument = 'cytokine', redcap_id = 209,
                        redcap_token = tok, guru_token = gtok, redcap_url = uri)
 
   s$sync_data(db_con = db_con)

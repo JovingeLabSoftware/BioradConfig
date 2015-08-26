@@ -103,6 +103,7 @@ dbSendQuery(
   "guru_box_id" INTEGER,
   "timepoint" TEXT,
   "in_guru" INTEGER,
+  "sample_type" TEXT,
   FOREIGN KEY(plate_id) REFERENCES plate(id),
   FOREIGN KEY(patient_id) REFERENCES patient(id)
   );'
