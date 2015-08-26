@@ -16,7 +16,7 @@ wrap2 <- function(x)
 
 get_tp <- Vectorize(function(field_name) {
   tu <-
-    setNames(c('0 Hour', '48 Hour', '8 Day'), c("baseline", "48", "8"))
+    setNames(c('0 Hour', '48 Hour', '8 Day', '0 Hour'), c("baseline", "48", "8", "ctrl"))
   return(unname(tu[strsplit(field_name, '_')[[1]][3]]))
 })
 
