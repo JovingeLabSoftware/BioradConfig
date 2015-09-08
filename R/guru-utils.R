@@ -238,7 +238,7 @@ get_guru_key <- function(user_name, password) {
     body = paste0('{"login":"', user_name, '","password":"',  password, '"}')
   )
 
-  if (req$status_code != 200L) {
+  if (res$status_code != 200L) {
     stop('There was an error retrieving your API token....')
   } else {
     return(httr::content(res)$token)

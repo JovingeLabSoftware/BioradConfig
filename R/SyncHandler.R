@@ -58,6 +58,7 @@ SyncHandler <- R6::R6Class(
       if (!check_guru_key(guru_token)) {
         creds <- readRDS('~/.labguru/secrets.rds')
         guru_token <- get_guru_key(creds$username, creds$password)
+        saveRDS(guru_token, '~/.labguru/token.rds')
       }
 
       self$redcap_id <- redcap_id
