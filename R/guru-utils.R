@@ -166,14 +166,14 @@ create_tube <- function(tube_name, tube_barcode, box, box_location, tissue_uuid,
       barcode = tube_barcode,
       box_id = box,
       location_in_box = as.character(box_location), # this has to be a character?
-      remarks = tube_notes,
+      description = tube_notes,
       sample_uuid = tissue_uuid
     ),
     token = token
   )
 
   # send post request
-  res <- poster(api_route = 'tubes', data = payload)
+  res <- poster(api_route = 'stocks', data = payload)
   return(jsonlite::fromJSON(httr::content(res, 'text')))
 }
 
