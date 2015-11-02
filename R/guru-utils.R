@@ -258,7 +258,7 @@ get_guru_key <- function(user_name, password) {
 
 check_guru_key <- function(token) {
   # do something simple and see if it fails
-  e <- try({get_one(token = token, id = 1, data_type = 'tubes')})
+  e <- try({get_one(token = token, id = 1, data_type = 'stocks')})
   if (inherits(e, 'try-error')) return(FALSE)
   else return(TRUE)
 }
