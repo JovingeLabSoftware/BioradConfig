@@ -15,12 +15,12 @@ Depends:
     httr
 Suggests:
     knitr
-VignetteBuilder: knitr
 Collate:
     'utils.R'
     'Aliquot.R'
     'Patient.R'
     'Plate.R'
-    'redcap-utils.R'
     'guru-utils.R'
+    'redcap-utils.R'
     'SyncHandler.R'
+RoxygenNote: 5.0.0

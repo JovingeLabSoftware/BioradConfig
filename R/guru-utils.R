@@ -7,7 +7,6 @@
 #' @param id The ID of the object you would like to retrieve
 #' @param data_type What kind of object \code{tubes}, \code{tissues}, or \code{boxes}
 #'
-#' @export
 #'
 #' @examples
 #' \dontrun{
@@ -16,6 +15,7 @@
 #' box_info <- get_one(token = tok, id = 70, data_type = 'boxes')
 #'
 #' }
+#' @export
 
 # gets a value for a certain data type and and id
 get_one <- function(token, id, data_type) {
@@ -33,7 +33,6 @@ get_one <- function(token, id, data_type) {
 #' @param token A valid LabGuru API token
 #' @param data_type What kind of object tube, tissue, etc
 #'
-#' @export
 #'
 #' @examples
 #' \dontrun{
@@ -42,6 +41,7 @@ get_one <- function(token, id, data_type) {
 #' box_info <- get_all(token = tok, data_type = 'boxes')
 #'
 #' }
+#' @export
 
 get_all <- function(token, data_type = 'boxes') {
   keep_going <- TRUE
@@ -260,6 +260,7 @@ check_guru_key <- function(token) {
   # do something simple and see if it fails
   e <- try({get_one(token = token, id = 1, data_type = 'stocks')})
   if (inherits(e, 'try-error')) return(FALSE)
+  else if (length(e) == 2) return(FALSE)
   else return(TRUE)
 }
 
@@ -351,7 +352,7 @@ update_tube <- function(id, token, name = NULL, remarks = NULL, barcode = NULL,
   )
 
   # send put request
-  res <- putter(api_route = 'tubes', id = id, data = payload)
+  res <- putter(api_route = 'stocks', id = id, data = payload)
   return(jsonlite::fromJSON(httr::content(res, 'text')))
 }
 
