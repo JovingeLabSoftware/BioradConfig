@@ -17,9 +17,13 @@
 #' }
 #' @export
 
+lguri <- "https://us.labguru.com/api/v1/"
+
 # gets a value for a certain data type and and id
+
+
 get_one <- function(token, id, data_type) {
-  target <- paste0("https://api.labguru.com/api/v1/", data_type, "/", id,
+  target <- paste0(lguri, data_type, "/", id,
                    ".json?token=", token)
   req <- curl::curl_fetch_memory(target)
   jsonlite::fromJSON(rawToChar(req$content))
@@ -52,7 +56,7 @@ get_all <- function(token, data_type = 'boxes') {
   # reqs <- list()
 
   while (keep_going) {
-    target <- paste0("https://api.labguru.com/api/v1/", data_type,
+    target <- paste0(lguri, data_type,
                      ".json?token=", token, "&page=", page_ctr)
     req <- curl::curl_fetch_memory(target)
     # reqs[[page_ctr]] <- req
@@ -79,7 +83,7 @@ get_all <- function(token, data_type = 'boxes') {
 # generic POST interface
 poster <- function(api_route, data) {
   req <- httr::POST(
-    url = paste0("https://api.labguru.com/api/v1/", api_route, ".json"),
+    url = paste0(lguri, api_route, ".json"),
     config = httr::add_headers("Content-Type" = "application/json"),
     body = jsonlite::toJSON(data, auto_unbox = TRUE)
   )
@@ -233,7 +237,7 @@ alpha_to_guru <- function(loc_string, reverse = FALSE, box_cols = 9) {
 get_guru_key <- function(user_name, password) {
 
   res <- httr::POST(
-    url = "https://api.labguru.com/api/v1/sessions.json",
+    url = paste0(lguri, 'sessions.json'),
     config = httr::add_headers("Content-Type" = "application/json"),
     body = paste0('{"login":"', user_name, '","password":"',  password, '"}')
   )
@@ -270,7 +274,7 @@ check_guru_key <- function(token) {
 # generic PUT interface
 putter <- function(api_route, id, data) {
   req <- httr::PUT(
-    url = paste0("https://api.labguru.com/api/v1/", api_route, "/", id, ".json"),
+    url = paste0(lguri, api_route, "/", id, ".json"),
     config = httr::add_headers("Content-Type" = "application/json"),
     body = jsonlite::toJSON(data, auto_unbox = TRUE)
   )
